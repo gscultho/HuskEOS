@@ -525,9 +525,9 @@ static void vd_sch_main(void)
             case (U1)ZERO:
               /* Manual sleep time out */
               break;          
-          }
-/* Resources configured */          
-#endif       
+          }          
+#endif /* Resources configured */
+		
           SchTask_s_as_taskList[u1_t_index].wakeReason = (U1)SCH_TASK_WAKEUP_SLEEP_TIMEOUT;
           u1_t_taskReady = u1_t_index;
           SchTask_s_as_taskList[u1_t_index].flags &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP | SCH_TASK_RESOURCE_SLEEP_CHECK_MASK));
@@ -568,7 +568,7 @@ static void vd_sch_main(void)
   }
 #endif
 
-  /* Reset time slice flag */
+  /* Reset tick flag */
   u1_s_tickFlg = (U1)SCH_TICK_FLAG_FALSE;
   
   if(&SchTask_s_as_taskList[u1_s_taskTCBIndex] == vd_g_p_currentTaskBlock)
@@ -616,20 +616,15 @@ static void vd_sch_background(void)
 /* 1.1                3/2/19      Changes to scheduling algorithm. Priority-based instead of   */
 /*                                time-based, added blocking and yielding APIs for tasks.      */
 /*                                                                                             */
-/* 1.2                3/3/19      Resolved issue(?) with enforced stack 8-byte alignment.      */
-/*                                This caused a word to be lost on each task stack after the   */
-/*                                first context switch for each task. Option added to change   */
-/*                                to word aligned, else a 100 word task stack only has 99      */
-/*                                words to use.                                                */
 /*                                                                                             */
-/* 1.3                3/25/19     Resolved scheduler bug in which a lower priority task would  */
+/* 1.2                3/25/19     Resolved scheduler bug in which a lower priority task would  */
 /*                                not have its sleep timer decremented on a SysTick interrupt  */
 /*                                if a higher priority task was ready to run.                  */
 /*                                                                                             */
-/* 1.4                5/20/19     Added members to TCB to track which resource task is blocked */
+/* 1.3                5/20/19     Added members to TCB to track which resource task is blocked */
 /*                                on. Scheduler calls APIs to remove task ID from resource     */
 /*                                block list.                                                  */
 /*                                                                                             */
-/* 1.5                5/21/19     Added TCB member and public API to track task wakeup reason. */
+/* 1.4                5/21/19     Added TCB member and public API to track task wakeup reason. */
 /*                                Appliation can now determine if task woke up due to timeout, */
 /*                                or a resource became available.                              */
