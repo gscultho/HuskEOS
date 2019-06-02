@@ -1,0 +1,67 @@
+Dependencies for Project 'OS', Target 'Target 1': (DO NOT MODIFY !)
+F (.\huskEOS\Schedule\Header\sch.h)(0x5CF2021D)()
+F (.\huskEOS\Schedule\Source\sch.c)(0x5CF336C0)(-c --cpu Cortex-M4.fp -D__EVAL -g -O0 --apcs=interwork -I.\huskEOS\ASM -I.\huskEOS\Global\Header -I.\huskEOS\Mailbox\Header -I.\huskEOS\Mailbox\Source -I.\huskEOS\Schedule\Header -I.\huskEOS\Schedule\Source -I.\huskEOS\Queue\Header -I.\huskEOS\Queue\Source -I.\huskEOS\Semaphore\Header -I.\huskEOS\Semaphore\Source -I.\huskEOS\Flags\Header -I.\huskEOS\Flags\Source -I.\huskEOS\OS_CPU_Interface\Source -I.\huskEOS\OS_CPU_Interface\ASM -I.\huskEOS\OS_CPU_Interface\Header-I C:\Keil\ARM\RV31\INC-I C:\Keil\ARM\CMSIS\Include-I C:\Keil\ARM\Inc\TI\TM4C123-DTM4C1231C3PM-o .\output\sch.o --omf_browse .\output\sch.crf --depend .\output\sch.d)
+I (.\huskEOS\Global\Header\rtos_cfg.h)(0x5CF33486)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_defs.h)(0x5CF1FB56)
+I (.\huskEOS\Schedule\Header\sch.h)(0x5CF2021D)
+I (.\huskEOS\Schedule\Header\sch_internal_IF.h)(0x5CF1FAA0)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_os_interface.h)(0x5CF33778)
+I (.\huskEOS\Mailbox\Header\mbox_internal_IF.h)(0x5CF1C144)
+I (.\huskEOS\Semaphore\Header\semaphore.h)(0x5CF31B7B)
+I (.\huskEOS\Semaphore\Header\semaphore_internal_IF.h)(0x5CF0783C)
+I (.\huskEOS\Queue\Header\queue_internal_IF.h)(0x5CF20822)
+I (.\huskEOS\Flags\Header\flags_internal_IF.h)(0x5CF07854)
+F (.\huskEOS\Mailbox\Header\mailbox.h)(0x5CF1C13D)()
+F (.\huskEOS\Mailbox\Source\mailbox.c)(0x5CF32EC3)(-c --cpu Cortex-M4.fp -D__EVAL -g -O0 --apcs=interwork -I.\huskEOS\ASM -I.\huskEOS\Global\Header -I.\huskEOS\Mailbox\Header -I.\huskEOS\Mailbox\Source -I.\huskEOS\Schedule\Header -I.\huskEOS\Schedule\Source -I.\huskEOS\Queue\Header -I.\huskEOS\Queue\Source -I.\huskEOS\Semaphore\Header -I.\huskEOS\Semaphore\Source -I.\huskEOS\Flags\Header -I.\huskEOS\Flags\Source -I.\huskEOS\OS_CPU_Interface\Source -I.\huskEOS\OS_CPU_Interface\ASM -I.\huskEOS\OS_CPU_Interface\Header-I C:\Keil\ARM\RV31\INC-I C:\Keil\ARM\CMSIS\Include-I C:\Keil\ARM\Inc\TI\TM4C123-DTM4C1231C3PM-o .\output\mailbox.o --omf_browse .\output\mailbox.crf --depend .\output\mailbox.d)
+I (.\huskEOS\Mailbox\Header\mailbox.h)(0x5CF1C13D)
+I (.\huskEOS\Mailbox\Header\mbox_internal_IF.h)(0x5CF1C144)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_defs.h)(0x5CF1FB56)
+I (.\huskEOS\Global\Header\rtos_cfg.h)(0x5CF33486)
+I (.\huskEOS\Semaphore\Header\semaphore.h)(0x5CF31B7B)
+I (.\huskEOS\Semaphore\Header\semaphore_internal_IF.h)(0x5CF0783C)
+I (.\huskEOS\Schedule\Header\sch.h)(0x5CF2021D)
+I (.\huskEOS\Schedule\Header\sch_internal_IF.h)(0x5CF1FAA0)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_os_interface.h)(0x5CF33778)
+F (.\huskEOS\Queue\Header\queue.h)(0x5CF32D8B)()
+F (.\huskEOS\Queue\Source\queue.c)(0x5CF332F0)(-c --cpu Cortex-M4.fp -D__EVAL -g -O0 --apcs=interwork -I.\huskEOS\ASM -I.\huskEOS\Global\Header -I.\huskEOS\Mailbox\Header -I.\huskEOS\Mailbox\Source -I.\huskEOS\Schedule\Header -I.\huskEOS\Schedule\Source -I.\huskEOS\Queue\Header -I.\huskEOS\Queue\Source -I.\huskEOS\Semaphore\Header -I.\huskEOS\Semaphore\Source -I.\huskEOS\Flags\Header -I.\huskEOS\Flags\Source -I.\huskEOS\OS_CPU_Interface\Source -I.\huskEOS\OS_CPU_Interface\ASM -I.\huskEOS\OS_CPU_Interface\Header-I C:\Keil\ARM\RV31\INC-I C:\Keil\ARM\CMSIS\Include-I C:\Keil\ARM\Inc\TI\TM4C123-DTM4C1231C3PM-o .\output\queue.o --omf_browse .\output\queue.crf --depend .\output\queue.d)
+I (.\huskEOS\Queue\Header\queue.h)(0x5CF32D8B)
+I (.\huskEOS\Queue\Header\queue_internal_IF.h)(0x5CF20822)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_defs.h)(0x5CF1FB56)
+I (.\huskEOS\Global\Header\rtos_cfg.h)(0x5CF33486)
+I (.\huskEOS\Semaphore\Header\semaphore.h)(0x5CF31B7B)
+I (.\huskEOS\Semaphore\Header\semaphore_internal_IF.h)(0x5CF0783C)
+I (.\huskEOS\Schedule\Header\sch.h)(0x5CF2021D)
+I (.\huskEOS\Schedule\Header\sch_internal_IF.h)(0x5CF1FAA0)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_os_interface.h)(0x5CF33778)
+F (.\huskEOS\Semaphore\Header\semaphore.h)(0x5CF31B7B)()
+F (.\huskEOS\Semaphore\Source\semaphore.c)(0x5CF31CF2)(-c --cpu Cortex-M4.fp -D__EVAL -g -O0 --apcs=interwork -I.\huskEOS\ASM -I.\huskEOS\Global\Header -I.\huskEOS\Mailbox\Header -I.\huskEOS\Mailbox\Source -I.\huskEOS\Schedule\Header -I.\huskEOS\Schedule\Source -I.\huskEOS\Queue\Header -I.\huskEOS\Queue\Source -I.\huskEOS\Semaphore\Header -I.\huskEOS\Semaphore\Source -I.\huskEOS\Flags\Header -I.\huskEOS\Flags\Source -I.\huskEOS\OS_CPU_Interface\Source -I.\huskEOS\OS_CPU_Interface\ASM -I.\huskEOS\OS_CPU_Interface\Header-I C:\Keil\ARM\RV31\INC-I C:\Keil\ARM\CMSIS\Include-I C:\Keil\ARM\Inc\TI\TM4C123-DTM4C1231C3PM-o .\output\semaphore.o --omf_browse .\output\semaphore.crf --depend .\output\semaphore.d)
+I (.\huskEOS\Semaphore\Header\semaphore.h)(0x5CF31B7B)
+I (.\huskEOS\Semaphore\Header\semaphore_internal_IF.h)(0x5CF0783C)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_defs.h)(0x5CF1FB56)
+I (.\huskEOS\Global\Header\rtos_cfg.h)(0x5CF33486)
+I (.\huskEOS\Schedule\Header\sch.h)(0x5CF2021D)
+I (.\huskEOS\Schedule\Header\sch_internal_IF.h)(0x5CF1FAA0)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_os_interface.h)(0x5CF33778)
+F (.\huskEOS\Flags\Header\flags.h)(0x5CE9A06C)()
+F (.\huskEOS\Flags\Source\flags.c)(0x5CF33472)(-c --cpu Cortex-M4.fp -D__EVAL -g -O0 --apcs=interwork -I.\huskEOS\ASM -I.\huskEOS\Global\Header -I.\huskEOS\Mailbox\Header -I.\huskEOS\Mailbox\Source -I.\huskEOS\Schedule\Header -I.\huskEOS\Schedule\Source -I.\huskEOS\Queue\Header -I.\huskEOS\Queue\Source -I.\huskEOS\Semaphore\Header -I.\huskEOS\Semaphore\Source -I.\huskEOS\Flags\Header -I.\huskEOS\Flags\Source -I.\huskEOS\OS_CPU_Interface\Source -I.\huskEOS\OS_CPU_Interface\ASM -I.\huskEOS\OS_CPU_Interface\Header-I C:\Keil\ARM\RV31\INC-I C:\Keil\ARM\CMSIS\Include-I C:\Keil\ARM\Inc\TI\TM4C123-DTM4C1231C3PM-o .\output\flags.o --omf_browse .\output\flags.crf --depend .\output\flags.d)
+I (.\huskEOS\Flags\Header\flags.h)(0x5CE9A06C)
+I (.\huskEOS\Flags\Header\flags_internal_IF.h)(0x5CF07854)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_defs.h)(0x5CF1FB56)
+I (.\huskEOS\Global\Header\rtos_cfg.h)(0x5CF33486)
+I (.\huskEOS\Schedule\Header\sch.h)(0x5CF2021D)
+I (.\huskEOS\Schedule\Header\sch_internal_IF.h)(0x5CF1FAA0)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_os_interface.h)(0x5CF33778)
+F (.\huskEOS\Global\Header\rtos_cfg.h)(0x5CF33486)()
+F (.\huskEOS\OS_CPU_Interface\ASM\taskSwitch.s)(0x5CF33ABB)(--cpu Cortex-M4.fp --pd "__EVAL SETA 1" -g --apcs=interwork -I C:\Keil\ARM\RV31\INC-I C:\Keil\ARM\CMSIS\Include-I C:\Keil\ARM\Inc\TI\TM4C123--list .\output\taskswitch.lst --xref -o .\output\taskswitch.o --depend .\output\taskswitch.d)
+F (.\huskEOS\OS_CPU_Interface\Header\cpu_defs.h)(0x5CF1FB56)()
+F (.\huskEOS\OS_CPU_Interface\Header\cpu_os_interface.h)(0x5CF33778)()
+F (.\huskEOS\OS_CPU_Interface\Source\cpu_os_interface.c)(0x5CF33AE4)(-c --cpu Cortex-M4.fp -D__EVAL -g -O0 --apcs=interwork -I.\huskEOS\ASM -I.\huskEOS\Global\Header -I.\huskEOS\Mailbox\Header -I.\huskEOS\Mailbox\Source -I.\huskEOS\Schedule\Header -I.\huskEOS\Schedule\Source -I.\huskEOS\Queue\Header -I.\huskEOS\Queue\Source -I.\huskEOS\Semaphore\Header -I.\huskEOS\Semaphore\Source -I.\huskEOS\Flags\Header -I.\huskEOS\Flags\Source -I.\huskEOS\OS_CPU_Interface\Source -I.\huskEOS\OS_CPU_Interface\ASM -I.\huskEOS\OS_CPU_Interface\Header-I C:\Keil\ARM\RV31\INC-I C:\Keil\ARM\CMSIS\Include-I C:\Keil\ARM\Inc\TI\TM4C123-DTM4C1231C3PM-o .\output\cpu_os_interface.o --omf_browse .\output\cpu_os_interface.crf --depend .\output\cpu_os_interface.d)
+I (.\huskEOS\Global\Header\rtos_cfg.h)(0x5CF33486)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_defs.h)(0x5CF1FB56)
+I (.\huskEOS\OS_CPU_Interface\Header\cpu_os_interface.h)(0x5CF33778)
+F (.\huskEOS\Flags\Header\flags_internal_IF.h)(0x5CF07854)()
+F (.\huskEOS\Mailbox\Header\mbox_internal_IF.h)(0x5CF1C144)()
+F (.\huskEOS\Queue\Header\queue_internal_IF.h)(0x5CF20822)()
+F (.\huskEOS\Schedule\Header\sch_internal_IF.h)(0x5CF1FAA0)()
+F (.\huskEOS\Semaphore\Header\semaphore_internal_IF.h)(0x5CF0783C)()
+F (.\App\Startup\ASM\startup.s)(0x5CF1C6EE)(--cpu Cortex-M4.fp --pd "__EVAL SETA 1" -g --apcs=interwork -I C:\Keil\ARM\RV31\INC-I C:\Keil\ARM\CMSIS\Include-I C:\Keil\ARM\Inc\TI\TM4C123--list .\output\startup.lst --xref -o .\output\startup.o --depend .\output\startup.d)
