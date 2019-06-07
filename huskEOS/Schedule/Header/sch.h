@@ -25,6 +25,8 @@
 #define SCH_TASK_FLAG_FALSE                      (0)
 #define SCH_TASK_FLAG_TRUE                       (1)
 #define SCH_BG_TASK_STACK_SIZE                   (RTOS_CONFIG_BG_TASK_STACK_SIZE) 
+
+/* Task wakeup reasons  */
 #define SCH_TASK_WAKEUP_SLEEP_TIMEOUT            (0x00)
 #define SCH_TASK_NO_WAKEUP_SINCE_LAST_CHECK      (0xFF)
 #define SCH_TASK_WAKEUP_MBOX_READY               (0x01)
@@ -41,7 +43,7 @@
 /*************************************************************************/
 /*  Public Functions                                                     */
 /*************************************************************************/
-void vd_OS_init(U1 numMsPeriod);
+void vd_OS_init(U4 numMsPeriod);
 U1   u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp);
 void vd_OSsch_start(void);
 U1   u1_OSsch_g_numTasks(void);
