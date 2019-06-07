@@ -34,6 +34,7 @@ extern void UnmaskInterrupt(U1);
 #define SYSTICK_24_BIT_MASK           (0x00FFFFFF)
 #define INTERRUPT_NEST_COUNT_ZERO     (0)
 #define SYSTICK_CTRL_EXTERNAL_CLK     (0x03)
+#define STACK_FRAME_PSR_INIT          (0x01000000)
 
 /*************************************************************************/
 /*  Data Structures                                                      */
@@ -75,6 +76,38 @@ void vd_cpu_init(U4 numMs)
   PENDSV_PRIORITY_SET_R  |= PENDSV_PRIORITY;
   vd_cpu_sysTickSet(numMs);
 }
+
+/*************************************************************************/
+/*  Function Name: vd_cpu_taskStackInit                                  */
+/*  Purpose:       Initialize relevant parameters in task stack.         */
+/*  Arguments:     void* newTaskFcn:                                     */
+/*                       Function pointer to task routine.               */
+/*                 void* sp:                                             */
+/*                       Pointer to bottom of task stack (highest mem.   */
+/*                       address).                                       */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
+void* vdp_cpu_taskStackInit(void (*newTaskFcn)(void), void* sp)
+{
+  S1        s1_t_index;
+  OS_STACK *os_t_p_stackFrame;
+  void     *vd_t_p_sp;
+
+  os_t_p_stackFrame = sp;
+  
+  /* Decrement to move upwards in stack */
+  os_t_p_stackFrame[ZERO] = (U4)STACK_FRAME_PSR_INIT; 
+  os_t_p_stackFrame[-1]   = (U4)newTaskFcn;
+  
+  for(s1_t_index = -2; s1_t_index > -16; --s1_t_index)
+  {
+    os_t_p_stackFrame[s1_t_index] = (U4)ZERO;
+  }
+  
+   vd_t_p_sp = &os_t_p_stackFrame[s1_t_index + 1]; /* index is -16 at this point, want -15 */
+  
+  return (vd_t_p_sp);
+}  
 
 /*************************************************************************/
 /*  Function Name: vd_cpu_disableInterrupts                              */
