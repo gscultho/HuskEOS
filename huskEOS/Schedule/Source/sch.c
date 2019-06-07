@@ -48,7 +48,6 @@
 #define SCH_TICK_FLAG_TRUE                       (SCH_TRUE)            
 #define SCH_TICK_FLAG_FALSE                      (SCH_FALSE)
 #define SCH_TCB_PTR_INIT                         (NULL)
-#define SCH_PENDSV_LOAD_MASK                     (0x10000000)
 #define SCH_TASK_FLAG_STS_SLEEP                  (0x10)
 #define SCH_TASK_FLAG_STS_SUSPENDED              (0x20) 
 #define SCH_TASK_FLAG_STS_YIELD                  (0x40)
@@ -56,7 +55,6 @@
 #define SCH_TASK_FLAG_SLEEP_QUEUE                (SCH_TASK_WAKEUP_QUEUE_READY)
 #define SCH_TASK_FLAG_SLEEP_SEMA                 (SCH_TASK_WAKEUP_SEMA_READY)
 #define SCH_TASK_FLAG_SLEEP_FLAGS                (SCH_TASK_WAKEUP_FLAGS_EVENT)
-#define SCH_STACK_FRAME_PSR_INIT                 (0x01000000)
 #define SCH_TASK_YIELD                           (0)
 #define SCH_TASK_FLAG_STS_CHECK                  (SCH_TASK_FLAG_STS_SLEEP | SCH_TASK_FLAG_STS_SUSPENDED | SCH_TASK_FLAG_STS_YIELD) 
 #define SCH_TASK_RESOURCE_SLEEP_CHECK_MASK       (SCH_TASK_FLAG_SLEEP_MBOX | SCH_TASK_FLAG_SLEEP_QUEUE | SCH_TASK_FLAG_SLEEP_SEMA | SCH_TASK_FLAG_SLEEP_FLAGS)
@@ -90,11 +88,11 @@ static void vd_sch_main(void);
 /*  Function Name: vd_OS_init                                            */
 /*  Purpose:       Initialize scheduler module and configured RTOS       */
 /*                 modukes.                                              */
-/*  Arguments:     U1 numMsPeriod:                                       */
+/*  Arguments:     U4 numMsPeriod:                                       */
 /*                    Sets scheduler tick rate in milliseconds.          */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_OS_init(U1 numMsPeriod)
+void vd_OS_init(U4 numMsPeriod)
 {
   U1 u1_t_index;
   
@@ -140,27 +138,13 @@ void vd_OS_init(U1 numMsPeriod)
 /*************************************************************************/
 U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp)
 {
-  S1  s1_t_index;
-  U4 *u4_t_p_stackFrame;
-
-  u4_t_p_stackFrame = sp;
-  
   if(u1_s_numTasks >= (U1)SCH_MAX_NUM_TASKS)
   {
     return ((U1)SCH_TASK_CREATE_DENIED);
   }
   
-  /* Decrement to move upwards in stack */
-  u4_t_p_stackFrame[ZERO] = (U4)SCH_STACK_FRAME_PSR_INIT; 
-  u4_t_p_stackFrame[-1]   = (U4)newTaskFcn;
-  
-  for(s1_t_index = -2; s1_t_index > -16; --s1_t_index)
-  {
-    u4_t_p_stackFrame[s1_t_index] = (U4)ZERO;
-  }
-  
   /* Set new task stack pointer */
-  SchTask_s_as_taskList[u1_s_numTasks].stackPtr = &u4_t_p_stackFrame[s1_t_index + 1]; /* index is -16 at this point, want -15 */
+  SchTask_s_as_taskList[u1_s_numTasks].stackPtr = vdp_cpu_taskStackInit(newTaskFcn, sp);
   
   /* Increment number of tasks */
   ++u1_s_numTasks;
