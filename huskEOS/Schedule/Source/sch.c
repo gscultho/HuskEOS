@@ -120,7 +120,7 @@ void vd_OS_init(U4 numMsPeriod)
 #endif
 
 #if(RTOS_CFG_OS_QUEUE_ENABLED == RTOS_CONFIG_TRUE)  
-	vd_queue_init();
+  vd_queue_init();
 #endif 
 }
 
