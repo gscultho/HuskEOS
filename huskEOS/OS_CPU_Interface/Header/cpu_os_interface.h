@@ -7,12 +7,15 @@
 #ifndef cpu_os_interface_h /* Protection from declaring more than once */
 #define cpu_os_interface_h
 
+#include "cpu_defs.h"
+
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
 #define OS_TICK_PRIORITY                       (0xC0)
 #define PENDSV_PRIORITY                        (0xE0)
 #define OS_INT_NO_MASK                         (0)
+#define CPU_PENDSV_LOAD_MASK                   (0x10000000)
 
 /*************************************************************************/
 /*  Macros                                                               */
@@ -28,7 +31,7 @@
 #define vd_cpu_enableInterruptsOSStart()        EnableInterrupts(c)
 #define OS_CPU_MASK_SCHEDULER_TICK(c)          (u1_cpu_maskInterrupts(OS_TICK_PRIORITY))
 #define OS_CPU_UNMASK_SCHEDULER_TICK(c)        (vd_cpu_unmaskInterrupts(c))
-#define OS_CPU_TRIGGER_DISPATCHER()            (*(SYS_REG_ICSR_ADDR) |= SCH_PENDSV_LOAD_MASK)
+#define OS_CPU_TRIGGER_DISPATCHER()            (*(SYS_REG_ICSR_ADDR) |= CPU_PENDSV_LOAD_MASK)
 
 /*************************************************************************/
 /*  Data Types                                                           */
@@ -38,14 +41,15 @@
 /*************************************************************************/
 /*  Public Functions                                                     */
 /*************************************************************************/
-void vd_cpu_init(U4 numMs);
-void vd_cpu_suspendScheduler(void);
-U4   u4_cpu_getCurrentMsPeriod(void);
-void vd_cpu_setNewSchedPeriod(U4 numMs);
-void vd_cpu_enableInterrupts(void);
-void vd_cpu_disableInterrupts(void);
-U1   u1_cpu_maskInterrupts(U1 setMask);
-void vd_cpu_unmaskInterrupts(U1 setMask);
+void      vd_cpu_init(U4 numMs);
+void*     vdp_cpu_taskStackInit(void (*newTaskFcn)(void), void* sp);
+void      vd_cpu_suspendScheduler(void);
+U4        u4_cpu_getCurrentMsPeriod(void);
+void      vd_cpu_setNewSchedPeriod(U4 numMs);
+void      vd_cpu_enableInterrupts(void);
+void      vd_cpu_disableInterrupts(void);
+U1        u1_cpu_maskInterrupts(U1 setMask);
+void      vd_cpu_unmaskInterrupts(U1 setMask);
  
 /*************************************************************************/
 /*  Global Variables                                                     */
