@@ -69,12 +69,17 @@ PendSV_Handler PROC
         EXPORT  UnmaskInterrupt
     
 ;*********** MaskInterrupt ***************
-; disable interrupts per mask given
+; disable interrupts per mask given ONLY IF new mask is higher priority (lower value) than current mask
 ; inputs:  R0 - New BASEPRI mask
 ; outputs: R0 - Previous BASEPRI mask
 MaskInterrupt
         MRS    R1, BASEPRI
-        MSR    BASEPRI, R0
+        CMP    R1, #0
+        BEQ    Mask                ;Note: BASEPRI = 0 means no mask currently
+        CMP    R0, R1              ;      0x20 is mask of second highest priority, 0x40 third, 0x60 fourth,...
+        BHI    DoNotMask
+Mask    MSR    BASEPRI, R0
+DoNotMask        
         MOV    R0, R1
         BX     LR
   
