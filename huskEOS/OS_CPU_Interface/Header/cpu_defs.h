@@ -23,8 +23,9 @@ typedef signed long    S8;
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
-#define OS_UWORD                      (U4)
-#define OS_SWORD                      (S4)
+#define OS_UWORD                      U4   
+#define OS_SWORD                      S4 
+#define OS_STACK                      OS_UWORD
 #define CPU_BUS_WORD_SIZE             (32)
 #define ZERO                          (0)
 #define NULL                          (0)
