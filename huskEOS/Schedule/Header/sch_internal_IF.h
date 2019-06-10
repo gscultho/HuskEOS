@@ -29,6 +29,9 @@ typedef struct
   U4         sleepCntr;
   void*      resource;
   U1         wakeReason;
+#if(RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT == RTOS_CONFIG_TRUE)
+  OS_STACK*  topOfStack;
+#endif
 }
 Sch_Task;
 
