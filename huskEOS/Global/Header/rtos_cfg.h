@@ -12,31 +12,33 @@
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
-#define RTOS_CONFIG_TRUE                   (1)
-#define RTOS_CONFIG_FALSE                  (0)
+#define RTOS_CONFIG_TRUE                            (1)
+#define RTOS_CONFIG_FALSE                           (0)
 
 /* Application */
-#define RTOS_CONFIG_TASK_STACK_SIZE        (100)
-#define RTOS_CONFIG_BG_TASK_STACK_SIZE     (50)
+#define RTOS_CONFIG_TASK_STACK_SIZE                 (100)
+#define RTOS_CONFIG_BG_TASK_STACK_SIZE              (50)
 
 
 /* Scheduling */
-#define RTOS_CONFIG_BG_TASK               (RTOS_CONFIG_TRUE)
-#define RTOS_CONFIG_MAX_NUM_TASKS         (6)
-#define RTOS_CONFIG_IDLE_SLEEP            (RTOS_CONFIG_TRUE)
-#define RTOS_CONFIG_PRESLEEP_FUNC         (RTOS_CONFIG_TRUE)
-#define RTOS_CONFIG_POSTSLEEP_FUNC        (RTOS_CONFIG_TRUE)
-#define RTOS_CONFIG_APP_IDLE_TASK         (RTOS_CONFIG_TRUE)
+#define RTOS_CONFIG_ENABLE_BACKGROUND_IDLE_SLEEP    (RTOS_CONFIG_TRUE)
+#define RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT    (RTOS_CONFIG_TRUE)
+#define RTOS_CONFIG_BG_TASK                         (RTOS_CONFIG_TRUE)
+#define RTOS_CONFIG_MAX_NUM_TASKS                   (6)
+#define RTOS_CONFIG_IDLE_SLEEP                      (RTOS_CONFIG_TRUE)
+#define RTOS_CONFIG_PRESLEEP_FUNC                   (RTOS_CONFIG_TRUE)
+#define RTOS_CONFIG_POSTSLEEP_FUNC                  (RTOS_CONFIG_TRUE)
+#define RTOS_CONFIG_APP_IDLE_TASK                   (RTOS_CONFIG_TRUE)
 
 /* Mailbox */
-#define RTOS_CFG_OS_MAILBOX_ENABLED       (RTOS_CONFIG_TRUE)
-#define RTOS_CFG_NUM_MAILBOX              (3)
+#define RTOS_CFG_OS_MAILBOX_ENABLED                 (RTOS_CONFIG_TRUE)
+#define RTOS_CFG_NUM_MAILBOX                        (3)
 
 /* Message Queues */
-#define RTOS_CFG_OS_QUEUE_ENABLED         (RTOS_CONFIG_TRUE)
-#define RTOS_CFG_NUM_FIFO                 (3)
-#define RTOS_CFG_BUFFER_LENGTH            (10)
-#define RTOS_CFG_BUFFER_DATA              U4
+#define RTOS_CFG_OS_QUEUE_ENABLED                   (RTOS_CONFIG_TRUE)
+#define RTOS_CFG_NUM_FIFO                           (3)
+#define RTOS_CFG_BUFFER_LENGTH                      (10)
+#define RTOS_CFG_BUFFER_DATA                        U4
 
 /* Semaphores */
 #define RTOS_CFG_OS_SEMAPHORE_ENABLED     (RTOS_CONFIG_TRUE)
