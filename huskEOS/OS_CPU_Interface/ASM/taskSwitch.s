@@ -72,7 +72,7 @@ PendSV_Handler PROC
 ; disable interrupts per mask given ONLY IF new mask is higher priority (lower value) than current mask
 ; inputs:  R0 - New BASEPRI mask
 ; outputs: R0 - Previous BASEPRI mask
-MaskInterrupt
+MaskInterrupt  PROC
         MRS    R1, BASEPRI
         CMP    R1, #0
         BEQ    Mask                ;Note: BASEPRI = 0 means no mask currently
@@ -82,23 +82,35 @@ Mask    MSR    BASEPRI, R0
 DoNotMask        
         MOV    R0, R1
         BX     LR
+      ENDP
   
 ;*********** UnmaskInterrupt ***************
 ; disable interrupts per mask given
 ; inputs:  R0 - New BASEPRI mask
 ; outputs: none
-UnmaskInterrupt
+UnmaskInterrupt  PROC
         MSR    BASEPRI, R0
         BX     LR
+      ENDP
         
 ;*********** WaitForInterrupt ************************
 ; go to low power mode while waiting for the next interrupt
 ; inputs:  none
 ; outputs: none
-WaitForInterrupt
+WaitForInterrupt  PROC
         WFI
         BX     LR
-        
-        ALIGN 
+      ENDP
             
-        END
+;*********** OSTaskFault ************************
+; Scheduler reached fault condition. Condition may be stack overflow detected.
+; inputs:  none
+; outputs: none
+OSTaskFault   PROC
+        EXPORT  OSTaskFault          [WEAK]
+        B       .
+      ENDP
+
+      ALIGN 
+            
+      END
