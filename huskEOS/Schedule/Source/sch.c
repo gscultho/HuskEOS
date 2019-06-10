@@ -28,21 +28,19 @@
 #endif
 
 /*************************************************************************/
-/*  Pre-processing                                                       */
+/*  External References                                                  */
+/*************************************************************************/
+extern void WaitForInterrupt(void);
+extern void OSTaskFault(void);
+
+/*************************************************************************/
+/*  Definitions                                                          */
 /*************************************************************************/
 #define RTOS_RESOURCES_CONFIGURED                (RTOS_CFG_OS_MAILBOX_ENABLED   | \
                                                   RTOS_CFG_OS_QUEUE_ENABLED     | \
                                                   RTOS_CFG_OS_SEMAPHORE_ENABLED | \
                                                   RTOS_CFG_OS_FLAGS_ENABLED)
-
-/*************************************************************************/
-/*  External References                                                  */
-/*************************************************************************/
-
-
-/*************************************************************************/
-/*  Definitions                                                          */
-/*************************************************************************/
+                                                  
 #define SCH_TRUE                                 (1)
 #define SCH_FALSE                                (0)
 #define SCH_TICK_FLAG_TRUE                       (SCH_TRUE)            
@@ -59,6 +57,7 @@
 #define SCH_TASK_FLAG_STS_CHECK                  (SCH_TASK_FLAG_STS_SLEEP | SCH_TASK_FLAG_STS_SUSPENDED | SCH_TASK_FLAG_STS_YIELD) 
 #define SCH_TASK_RESOURCE_SLEEP_CHECK_MASK       (SCH_TASK_FLAG_SLEEP_MBOX | SCH_TASK_FLAG_SLEEP_QUEUE | SCH_TASK_FLAG_SLEEP_SEMA | SCH_TASK_FLAG_SLEEP_FLAGS)
 #define SCH_YIELD_TASK_NOT_SET                   (0xFF)
+#define SCH_TOP_OF_STACK_MARK                    (0xF0F0F0F0)
   
 /*************************************************************************/
 /*  Global Variables, Constants                                          */
@@ -68,7 +67,9 @@ static U1 u1_s_tickFlg; /* Protected by scheduler critical section */
 static U1 u1_s_taskTCBIndex;
 static U4 u4_s_tickCntr;
 
-static U4       u4_backgroundStack[SCH_BG_TASK_STACK_SIZE];
+#if (RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
+static OS_STACK u4_backgroundStack[SCH_BG_TASK_STACK_SIZE];
+#endif
 static Sch_Task SchTask_s_as_taskList[SCH_MAX_NUM_TASKS];
 
 /* Note: These global variables are modified by asm routine */
@@ -79,7 +80,14 @@ Sch_Task* vd_g_p_nextTaskBlock;
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
 /*************************************************************************/
+#if (RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
 static void vd_sch_background(void);
+#endif
+
+#if(RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT == RTOS_CONFIG_TRUE)
+static U1 u1_sch_checkStack(U1 taskIndex);
+#endif
+
 static void vd_sch_main(void);
 
 /*************************************************************************/
@@ -136,15 +144,22 @@ void vd_OS_init(U4 numMsPeriod)
 /*  Return:        SCH_TASK_CREATE_SUCCESS   OR                          */
 /*                 SCH_TASK_CREATE_DENIED                                */
 /*************************************************************************/
-U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp)
+U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack)
 {
   if(u1_s_numTasks >= (U1)SCH_MAX_NUM_TASKS)
   {
     return ((U1)SCH_TASK_CREATE_DENIED);
   }
   
-  /* Set new task stack pointer */
-  SchTask_s_as_taskList[u1_s_numTasks].stackPtr = vdp_cpu_taskStackInit(newTaskFcn, sp);
+  /* Set new task stack pointers */
+#if(STACK_GROWTH == STACK_DESCENDING)
+  SchTask_s_as_taskList[u1_s_numTasks].topOfStack = ((OS_STACK*)sp - sizeOfStack + ONE);
+#elif(STACK_GROWTH == STACK_ASCENDING)
+  SchTask_s_as_taskList[u1_s_numTasks].topOfStack = ((OS_STACK*)sp + sizeOfStack - ONE);
+#else 
+  #error "STACK DIRECTION NOT PROPERLY DEFINED"
+#endif
+  SchTask_s_as_taskList[u1_s_numTasks].stackPtr   = vdp_cpu_taskStackInit(newTaskFcn, sp);
   
   /* Increment number of tasks */
   ++u1_s_numTasks;
@@ -161,7 +176,7 @@ U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp)
 void vd_OSsch_start(void)
 {
 #if (RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
-  u1_OSsch_createTask(&vd_sch_background, &u4_backgroundStack[SCH_BG_TASK_STACK_SIZE - 1]);
+  u1_OSsch_createTask(&vd_sch_background, &u4_backgroundStack[SCH_BG_TASK_STACK_SIZE - ONE], (U4)RTOS_CONFIG_BG_TASK_STACK_SIZE);
 #endif
 
   /* Start at highest priority task */
@@ -425,9 +440,9 @@ __irq void SysTick_Handler(void)
   /* Not a yielding or blocking scheduler call */
   u1_s_tickFlg = (U1)SCH_TICK_FLAG_TRUE;
   ++u4_s_tickCntr;
-
-  vd_sch_main();
   
+  vd_sch_main();
+
   /* Resume tick interrupts and enable context switch interrupt. */
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
 }
@@ -446,9 +461,6 @@ static void vd_sch_main(void)
   
   u1_t_yieldTask = (U1)SCH_YIELD_TASK_NOT_SET;
   
-  /* Default to lowest priority */
-  u1_t_taskReady = u1_s_numTasks;
-  
   /* If current task has been set to sleep, reset current TCB number to pick new task */
   if(SchTask_s_as_taskList[u1_s_taskTCBIndex].flags & (U1)SCH_TASK_FLAG_STS_CHECK)
   {
@@ -458,6 +470,9 @@ static void vd_sch_main(void)
   /* Scheduler */
   for(u1_t_index = ZERO; u1_t_index < u1_s_numTasks; u1_t_index++)
   {
+    /* Default to lowest priority */
+    u1_t_taskReady = u1_s_numTasks;
+    
     /* Task status handling. No flags set means task is ready. */
     if(SchTask_s_as_taskList[u1_t_index].flags & (U1)SCH_TASK_FLAG_STS_CHECK)
     {  
@@ -575,14 +590,45 @@ static void vd_sch_main(void)
 /*  Arguments:     N/A                                                   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
+#if (RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
 static void vd_sch_background(void)
 {
-  /* Configurable empty background task. Runs until user task is ready. */
+  U1 u1_t_index;
+
   for(;;)
-  {
-    /* hook function */
+  {    
+    /* pre-sleep hook function goes here */
+    
+#if(RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT == RTOS_CONFIG_TRUE)
+    for(u1_t_index = ZERO; u1_t_index < u1_s_numTasks; u1_t_index++)
+    {
+      if(u1_sch_checkStack(u1_t_index))
+      {
+        OSTaskFault();
+      }
+    }
+#endif
+    
+#if(RTOS_CONFIG_ENABLE_BACKGROUND_IDLE_SLEEP == RTOS_CONFIG_TRUE)
+    WaitForInterrupt();
+#endif
   }
 }
+#endif
+
+/*************************************************************************/
+/*  Function Name: u1_sch_checkStack                                     */
+/*  Purpose:       Check watermark on task stacks.                       */
+/*  Arguments:     U1 taskIndex:                                         */
+/*                    Task ID to be checked.                             */
+/*  Return:        SCH_TRUE or SCH_FALSE                                 */
+/*************************************************************************/
+#if(RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT == RTOS_CONFIG_TRUE)
+static U1 u1_sch_checkStack(U1 taskIndex)
+{
+  return(*SchTask_s_as_taskList[taskIndex].topOfStack != (OS_STACK)SCH_TOP_OF_STACK_MARK);
+}
+#endif
 
 /***********************************************************************************************/
 /* History                                                                                     */
@@ -593,7 +639,7 @@ static void vd_sch_background(void)
 /*                                to five tasks according to their period and sequence.        */
 /*                                                                                             */
 /* 0.2                2/12/19     Took timer/interrupt operations and combined into            */
-/*                                timeHandler module.                                          */
+/*                                timeHandler module. (Has since been migrated into CPU IF.    */
 /*                                                                                             */
 /* 1.0                2/28/19     First implementation of pre-emptive scheduler.               */
 /*                                                                                             */
@@ -610,5 +656,7 @@ static void vd_sch_background(void)
 /*                                block list.                                                  */
 /*                                                                                             */
 /* 1.4                5/21/19     Added TCB member and public API to track task wakeup reason. */
-/*                                Appliation can now determine if task woke up due to timeout, */
+/*                                Application can now determine if task woke up due to timeout,*/
 /*                                or a resource became available.                              */
+/*                                                                                             */
+/* 1.5                5/9/19      Added stack overflow detection.                              */
