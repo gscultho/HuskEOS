@@ -26,6 +26,7 @@ typedef signed long    S8;
 #define OS_UWORD                      U4   
 #define OS_SWORD                      S4 
 #define OS_STACK                      OS_UWORD
+#define ONE                           (1)
 #define CPU_BUS_WORD_SIZE             (32)
 #define ZERO                          (0)
 #define NULL                          (0)
@@ -36,6 +37,10 @@ typedef signed long    S8;
 #define NVIC_ST_CALIBRATE_R           (*((volatile U4 *)0xE000E01C))
 #define NVIC_ST_PRIORITY_R            (*((volatile U1 *)0xE000ED23))
 #define NVIC_PENDSV_PRIORITY_R        (*((volatile U1 *)0xE000ED22))
+  
+#define STACK_DESCENDING              (0)
+#define STACK_ASCENDING               (1)
+#define STACK_GROWTH                  (STACK_DESCENDING)
 
 
 /*************************************************************************/
