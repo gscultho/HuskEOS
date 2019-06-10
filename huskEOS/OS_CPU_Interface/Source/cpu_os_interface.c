@@ -35,6 +35,9 @@ extern void UnmaskInterrupt(U1);
 #define INTERRUPT_NEST_COUNT_ZERO     (0)
 #define SYSTICK_CTRL_EXTERNAL_CLK     (0x03)
 #define STACK_FRAME_PSR_INIT          (0x01000000)
+#define END_OF_REG_STACK_FRAME        (-16)
+#define PSR_REGISTER_SLOT             (-1)
+#define GENERAL_PURPOSE_REG_START     (-2)
 
 /*************************************************************************/
 /*  Data Structures                                                      */
@@ -96,15 +99,15 @@ void* vdp_cpu_taskStackInit(void (*newTaskFcn)(void), void* sp)
   os_t_p_stackFrame = sp;
   
   /* Decrement to move upwards in stack */
-  os_t_p_stackFrame[ZERO] = (U4)STACK_FRAME_PSR_INIT; 
-  os_t_p_stackFrame[-1]   = (U4)newTaskFcn;
+  os_t_p_stackFrame[ZERO]                = (U4)STACK_FRAME_PSR_INIT; 
+  os_t_p_stackFrame[PSR_REGISTER_SLOT]   = (U4)newTaskFcn;
   
-  for(s1_t_index = -2; s1_t_index > -16; --s1_t_index)
+  for(s1_t_index = (S1)GENERAL_PURPOSE_REG_START; s1_t_index > (S1)END_OF_REG_STACK_FRAME; --s1_t_index)
   {
     os_t_p_stackFrame[s1_t_index] = (U4)ZERO;
   }
   
-   vd_t_p_sp = &os_t_p_stackFrame[s1_t_index + 1]; /* index is -16 at this point, want -15 */
+   vd_t_p_sp = &os_t_p_stackFrame[s1_t_index + ONE]; /* index is -16 at this point, want -15 */
   
   return (vd_t_p_sp);
 }  
