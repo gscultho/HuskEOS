@@ -108,6 +108,7 @@ WaitForInterrupt  PROC
 ; outputs: none
 OSTaskFault   PROC
         EXPORT  OSTaskFault          [WEAK]
+        CPSID   I
         B       .
       ENDP
 
