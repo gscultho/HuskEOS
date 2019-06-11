@@ -159,8 +159,8 @@ U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack)
 #else 
   #error "STACK DIRECTION NOT PROPERLY DEFINED"
 #endif
-  SchTask_s_as_taskList[u1_s_numTasks].stackPtr   = vdp_cpu_taskStackInit(newTaskFcn, sp);
-  
+  SchTask_s_as_taskList[u1_s_numTasks].stackPtr    = vdp_cpu_taskStackInit(newTaskFcn, sp);
+  *SchTask_s_as_taskList[u1_s_numTasks].topOfStack = (OS_STACK)SCH_TOP_OF_STACK_MARK;
   /* Increment number of tasks */
   ++u1_s_numTasks;
 
