@@ -41,11 +41,11 @@
 #define RTOS_CFG_BUFFER_DATA                        U4
 
 /* Semaphores */
-#define RTOS_CFG_OS_SEMAPHORE_ENABLED     (RTOS_CONFIG_TRUE)
-#define RTOS_CFG_NUM_BLOCKED_TASKS_SEMA   (3)
+#define RTOS_CFG_OS_SEMAPHORE_ENABLED               (RTOS_CONFIG_TRUE)
+#define RTOS_CFG_NUM_BLOCKED_TASKS_SEMA             (3)
 
 /* Flags */
-#define RTOS_CFG_OS_FLAGS_ENABLED         (RTOS_CONFIG_TRUE)
+#define RTOS_CFG_OS_FLAGS_ENABLED                   (RTOS_CONFIG_TRUE)
 
 /* I/O */
 #define PART_TM4C123GH6PM 1
