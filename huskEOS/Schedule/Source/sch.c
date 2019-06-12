@@ -73,8 +73,8 @@ static OS_STACK u4_backgroundStack[SCH_BG_TASK_STACK_SIZE];
 static Sch_Task SchTask_s_as_taskList[SCH_MAX_NUM_TASKS];
 
 /* Note: These global variables are modified by asm routine */
-Sch_Task* vd_g_p_currentTaskBlock;
-Sch_Task* vd_g_p_nextTaskBlock;
+Sch_Task* tcb_g_p_currentTaskBlock;
+Sch_Task* tcb_g_p_nextTaskBlock;
 
 
 /*************************************************************************/
@@ -119,7 +119,7 @@ void vd_OS_init(U4 numMsPeriod)
     SchTask_s_as_taskList[u1_t_index].wakeReason = (U1)ZERO;
   }
   
-  vd_g_p_currentTaskBlock =  (void*)SCH_TCB_PTR_INIT;
+  tcb_g_p_currentTaskBlock =  (void*)SCH_TCB_PTR_INIT;
   
   vd_cpu_init(numMsPeriod);
  
@@ -180,7 +180,7 @@ void vd_OSsch_start(void)
 #endif
 
   /* Start at highest priority task */
-  vd_g_p_nextTaskBlock = &SchTask_s_as_taskList[ZERO];
+  tcb_g_p_nextTaskBlock = &SchTask_s_as_taskList[ZERO];
   vd_cpu_enableInterruptsOSStart();
   OS_CPU_TRIGGER_DISPATCHER();
 }
@@ -347,7 +347,7 @@ void vd_OSsch_taskSleep(U4 period)
   }
   else
   {
-    SchTask_s_as_taskList[u1_s_taskTCBIndex].sleepCntr = (U4)period; 
+    SchTask_s_as_taskList[u1_s_taskTCBIndex].sleepCntr = period; 
     SchTask_s_as_taskList[u1_s_taskTCBIndex].flags    |= (U1)SCH_TASK_FLAG_STS_SLEEP;
   }
   
@@ -356,6 +356,35 @@ void vd_OSsch_taskSleep(U4 period)
   
   /* Resume tick interrupts and enable context switch interrupt. */
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
+}
+
+/*************************************************************************/
+/*  Function Name: u4_OSsch_taskSleepSetFreq                             */
+/*  Purpose:       Used to set task to sleep such that task will run at a*/
+/*                 set frequency.                                        */
+/*  Arguments:     U4 nextWakeTime:                                      */
+/*                    Time to wake up at (in ticks).                     */
+/*  Return:        U4 u4_t_wakeTime:                                     */
+/*                    Tick value that task was most recently woken at.   */
+/*************************************************************************/
+U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime)
+{
+  U1 u1_t_intMask;
+
+  /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
+  u1_t_intMask = u1_OSsch_maskInterrupts();
+
+  SchTask_s_as_taskList[u1_s_taskTCBIndex].sleepCntr = nextWakeTime - u4_s_tickCntr; 
+  SchTask_s_as_taskList[u1_s_taskTCBIndex].flags    |= (U1)SCH_TASK_FLAG_STS_SLEEP;
+  
+  /* Switch to an active task */
+  vd_sch_main();
+  
+  /* Resume tick interrupts and enable context switch interrupt. */
+  vd_OSsch_unmaskInterrupts(u1_t_intMask);
+
+  
+  return(u4_s_tickCntr);  
 }
 
 /*************************************************************************/
@@ -380,7 +409,7 @@ void vd_OSsch_taskWake(U1 taskIndex)
     u1_s_taskTCBIndex = taskIndex;
     
     /* Set global task pointer to new task control block */
-    vd_g_p_nextTaskBlock = &SchTask_s_as_taskList[u1_s_taskTCBIndex];
+    tcb_g_p_nextTaskBlock = &SchTask_s_as_taskList[u1_s_taskTCBIndex];
     
     OS_CPU_TRIGGER_DISPATCHER();
   }
@@ -570,14 +599,14 @@ static void vd_sch_main(void)
   /* Reset tick flag */
   u1_s_tickFlg = (U1)SCH_TICK_FLAG_FALSE;
   
-  if(&SchTask_s_as_taskList[u1_s_taskTCBIndex] == vd_g_p_currentTaskBlock)
+  if(&SchTask_s_as_taskList[u1_s_taskTCBIndex] == tcb_g_p_currentTaskBlock)
   {  
     /* Do nothing, return to current task. */
   }
   else
   {
     /* Set global task pointer to new task control block */
-    vd_g_p_nextTaskBlock = &SchTask_s_as_taskList[u1_s_taskTCBIndex];
+    tcb_g_p_nextTaskBlock = &SchTask_s_as_taskList[u1_s_taskTCBIndex];
 
     /* Set bit for pendSV to run when CPU is ready */
     OS_CPU_TRIGGER_DISPATCHER();
@@ -660,3 +689,6 @@ static U1 u1_sch_checkStack(U1 taskIndex)
 /*                                or a resource became available.                              */
 /*                                                                                             */
 /* 1.5                5/9/19      Added stack overflow detection.                              */
+/*                                                                                             */
+/* 1.6                5/9/19      Added u4_OSsch_taskSleepSetFreq to support task execution at */
+/*                                set frequencies.                                             */
