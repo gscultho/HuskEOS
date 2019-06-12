@@ -54,6 +54,7 @@ U1   u1_OSsch_getCurrentTask(void);
 void vd_OSsch_setNewTickPeriod(U4 numMsReload);
 void vd_OSsch_taskYield(void);
 void vd_OSsch_taskSleep(U4 period);
+U4   u4_OSsch_taskSleepSetFreq(U4 nextWakeTime);
 void vd_OSsch_taskWake(U1 taskIndex); 
 void vd_OSsch_taskSuspend(U1 taskIndex);  
 void vd_OSsch_suspendScheduler(void);
