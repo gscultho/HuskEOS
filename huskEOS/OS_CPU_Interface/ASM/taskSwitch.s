@@ -6,8 +6,8 @@
 ;*************************************************************************/
 
     
-        EXTERN  vd_g_p_currentTaskBlock
-        EXTERN  vd_g_p_nextTaskBlock
+        EXTERN  tcb_g_p_currentTaskBlock
+        EXTERN  tcb_g_p_nextTaskBlock
 
 ;******************************************************************************
 ;Allocate Variables            
@@ -38,12 +38,12 @@ PendSV_Handler PROC
                     ;Note that the first entry in each TCB is its stack pointer
                     MOV     R0, SP
                     STMDB   R0!,{R4-R11}                          
-                    LDR     R1, =vd_g_p_currentTaskBlock
+                    LDR     R1, =tcb_g_p_currentTaskBlock
                     LDR     R2, [R1]
                     STR     R0, [R2]
                     
                     ;Switch TCB pointers
-                    LDR     R3, =vd_g_p_nextTaskBlock
+                    LDR     R3, =tcb_g_p_nextTaskBlock
                     LDR     R0, [R3]                     ; safe to use R5 at this point
                     STR     R0, [R1]
                     
