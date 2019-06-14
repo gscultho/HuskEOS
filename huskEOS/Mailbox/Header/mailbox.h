@@ -32,9 +32,9 @@
 /*************************************************************************/
 /*  Public Functions                                                     */
 /*************************************************************************/
-U4   u4_OSmbox_getMail(U1 mailbox, U4 blockPeriod, U1* errorCode);
-U1   u1_OSmbox_sendMail(U1 mailbox, U4 blockPeriod, U4 data, U1* errorCode);
-U4   u4_OSmbox_checkMail(U1 mailbox, U1* errorCode);
+MAIL u4_OSmbox_getMail(U1 mailbox, U4 blockPeriod, U1* errorCode);
+U1   u1_OSmbox_sendMail(U1 mailbox, U4 blockPeriod, MAIL data, U1* errorCode);
+MAIL mail_OSmbox_checkMail(U1 mailbox, U1* errorCode);
 void vd_OSmbox_clearMailbox(U1 mailbox);
 
 /*************************************************************************/
