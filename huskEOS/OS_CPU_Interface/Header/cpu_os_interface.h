@@ -29,9 +29,10 @@
 #define OS_CPU_ENTER_CRITICAL(void)            (vd_cpu_disableInterrupts(void))
 #define OS_CPU_EXIT_CRITICAL(void)             (vd_cpu_enableInterrupts(void)) 
 #define vd_cpu_enableInterruptsOSStart()        EnableInterrupts(c)
+#define vd_cpu_disableInterruptsOSStart()       DisableInterrupts(c)
 #define OS_CPU_MASK_SCHEDULER_TICK(c)          (u1_cpu_maskInterrupts(OS_TICK_PRIORITY))
 #define OS_CPU_UNMASK_SCHEDULER_TICK(c)        (vd_cpu_unmaskInterrupts(c))
-#define OS_CPU_TRIGGER_DISPATCHER()            (*(SYS_REG_ICSR_ADDR) |= CPU_PENDSV_LOAD_MASK)
+#define OS_CPU_TRIGGER_DISPATCHER()            ((SYS_REG_ICSR_ADDR) |= CPU_PENDSV_LOAD_MASK)
 
 /*************************************************************************/
 /*  Data Types                                                           */
@@ -42,7 +43,7 @@
 /*  Public Functions                                                     */
 /*************************************************************************/
 void      vd_cpu_init(U4 numMs);
-void*     vdp_cpu_taskStackInit(void (*newTaskFcn)(void), void* sp);
+OS_STACK* sp_cpu_taskStackInit(void (*newTaskFcn)(void), OS_STACK* sp);
 void      vd_cpu_suspendScheduler(void);
 U4        u4_cpu_getCurrentMsPeriod(void);
 void      vd_cpu_setNewSchedPeriod(U4 numMs);
