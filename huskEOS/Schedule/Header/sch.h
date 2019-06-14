@@ -44,7 +44,7 @@
 /*  Public Functions                                                     */
 /*************************************************************************/
 void vd_OS_init(U4 numMsPeriod);
-U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack);
+U1   u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack);
 void vd_OSsch_start(void);
 U1   u1_OSsch_g_numTasks(void);
 U4   u4_OSsch_getCurrentTickPeriodMs(void);
