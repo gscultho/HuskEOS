@@ -52,7 +52,7 @@ void vd_mbox_init(void)
   
   for(u1_t_index = (U1)ZERO; u1_t_index < MBOX_MAX_NUM_MAILBOX; u1_t_index++)
   {
-    Mbox_MailboxList[u1_t_index].mail          = (U4)MBOX_MAILBOX_EMPTY;
+    Mbox_MailboxList[u1_t_index].mail          = (MAIL)MBOX_MAILBOX_EMPTY;
     Mbox_MailboxList[u1_t_index].blockedTaskID = (U1)MBOX_MAILBOX_EMPTY;
     
     vd_OSsema_init(&Mbox_MailboxList[u1_t_index].mboxSema); 
@@ -60,7 +60,7 @@ void vd_mbox_init(void)
 }
 
 /*************************************************************************/
-/*  Function Name: u4_OSmbox_getMail                                     */
+/*  Function Name: mail_OSmbox_getMail                                   */
 /*  Purpose:       Get data from specified mailbox.                      */
 /*  Arguments:     U1  mailbox:                                          */
 /*                      Mailbox identifier.                              */
@@ -68,12 +68,12 @@ void vd_mbox_init(void)
 /*                      Number of time units for task to sleep if blocked*/
 /*                 U1* errorCode:                                        */
 /*                      Address to write error to.                       */
-/*  Return:        U4  MBOX_FAILURE     OR                               */
-/*                     data held in mailbox.                             */
+/*  Return:        MAIL   MBOX_FAILURE     OR                            */
+/*                        data held in mailbox.                          */
 /*************************************************************************/
-U4 u4_OSmbox_getMail(U1 mailbox, U4 blockPeriod, U1* errorCode)
+MAIL mail_OSmbox_getMail(U1 mailbox, U4 blockPeriod, U1* errorCode)
 {
-  U4       u4_t_data;
+  MAIL     mail_t_data;
   Mailbox* mbox_t_p_mboxPtr;
   
   *errorCode = u1_mbox_checkValidMailbox(mailbox);
@@ -97,10 +97,10 @@ U4 u4_OSmbox_getMail(U1 mailbox, U4 blockPeriod, U1* errorCode)
   /* Semaphore is now taken by this task */ 
   
   /* Semaphore claimed, get the data */
-  u4_t_data = mbox_t_p_mboxPtr->mail;
+  mail_t_data = mbox_t_p_mboxPtr->mail;
   
   /* Check if mailbox has data ready */
-  if(u4_t_data != (U4)MBOX_MAILBOX_EMPTY)
+  if(mail_t_data != (MAIL)MBOX_MAILBOX_EMPTY)
   {
     if(mbox_t_p_mboxPtr->blockedTaskID != (U1)MBOX_MAILBOX_EMPTY)
     {  
@@ -108,12 +108,12 @@ U4 u4_OSmbox_getMail(U1 mailbox, U4 blockPeriod, U1* errorCode)
     }
     
     /* Reset mailbox */
-    mbox_t_p_mboxPtr->mail = (U4)MBOX_MAILBOX_EMPTY;
+    mbox_t_p_mboxPtr->mail = (MAIL)MBOX_MAILBOX_EMPTY;
     
     /* Release semaphore */
     u1_OSsema_post(&(mbox_t_p_mboxPtr->mboxSema));
     
-    return (u4_t_data);
+    return (mail_t_data);
   }
   /* If not, block */
   else
@@ -127,19 +127,19 @@ U4 u4_OSmbox_getMail(U1 mailbox, U4 blockPeriod, U1* errorCode)
 }
 
 /*************************************************************************/
-/*  Function Name: u4_OSmbox_checkMail                                   */
+/*  Function Name: mail_OSmbox_checkMail                                 */
 /*  Purpose:       Check for data but do not clear it.                   */
 /*  Arguments:     U1  mailbox:                                          */
 /*                      Mailbox identifier.                              */
 /*                 U1* errorCode:                                        */
 /*                      Address to write error to.                       */
-/*  Return:        U4 0 if empty              OR                         */
-/*                    MBOX_FAILURE if invalid OR                         */
-/*                    data held in mailbox.                              */
+/*  Return:        MAIL 0 if empty              OR                       */
+/*                      MBOX_FAILURE if invalid OR                       */
+/*                      data held in mailbox.                            */
 /*************************************************************************/
-U4 u4_OSmbox_checkMail(U1 mailbox, U1* errorCode)
+MAIL mail_OSmbox_checkMail(U1 mailbox, U1* errorCode)
 {
-  U4 u4_t_data;
+  MAIL mail_t_data;
   Mailbox* mbox_t_p_mboxPtr;
   
   *errorCode = u1_mbox_checkValidMailbox(mailbox);
@@ -150,18 +150,18 @@ U4 u4_OSmbox_checkMail(U1 mailbox, U1* errorCode)
   }
   
   mbox_t_p_mboxPtr = &Mbox_MailboxList[mailbox];
-  u4_t_data        = (U4)MBOX_MAILBOX_EMPTY;
+  mail_t_data        = (MAIL)MBOX_MAILBOX_EMPTY;
   
   OS_CPU_ENTER_CRITICAL();
   
   if(mbox_t_p_mboxPtr->mail != MBOX_MAILBOX_EMPTY)
   {
-    u4_t_data = mbox_t_p_mboxPtr->mail;
+    mail_t_data = mbox_t_p_mboxPtr->mail;
   }
   
   OS_CPU_EXIT_CRITICAL();
   
-  return (u4_t_data);
+  return (mail_t_data);
 }
 
 /*************************************************************************/
@@ -171,15 +171,15 @@ U4 u4_OSmbox_checkMail(U1 mailbox, U1* errorCode)
 /*                     Mailbox identifier.                               */
 /*                 U4  blockPeriod:                                      */
 /*                     Number of time units for task to sleep if blocked.*/
-/*                 U4  data:                                             */
-/*                     Data to be dropped.                               */
+/*                 MAIL  data:                                           */
+/*                       Data to be dropped.                             */
 /*                 U1* errorCode:                                        */
 /*                      Address to write error to.                       */
 /*                                                                       */
 /*  Return:        U1 MBOX_SUCCESS  OR                                   */
 /*                    MBOX_FAILURE                                       */
 /*************************************************************************/
-U1 u1_OSmbox_sendMail(U1 mailbox, U4 blockPeriod, U4 data, U1* errorCode)
+U1 u1_OSmbox_sendMail(U1 mailbox, U4 blockPeriod, MAIL data, U1* errorCode)
 { 
   *errorCode = u1_mbox_checkValidMailbox(mailbox);
 
