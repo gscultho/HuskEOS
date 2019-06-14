@@ -16,7 +16,7 @@
 #define RTOS_CONFIG_FALSE                           (0)
 
 /* Application */
-#define RTOS_CONFIG_TASK_STACK_SIZE                 (100)
+#define RTOS_CONFIG_TASK_STACK_SIZE                 (100)                /* Does not need to be used, each task can have its own stack size */
 #define RTOS_CONFIG_BG_TASK_STACK_SIZE              (50)
 
 
@@ -33,12 +33,13 @@
 /* Mailbox */
 #define RTOS_CFG_OS_MAILBOX_ENABLED                 (RTOS_CONFIG_TRUE)
 #define RTOS_CFG_NUM_MAILBOX                        (3)
+#define RTOS_CFG_MBOX_DATA                          U4                     /* Data type for mailbox */
 
 /* Message Queues */
 #define RTOS_CFG_OS_QUEUE_ENABLED                   (RTOS_CONFIG_TRUE)
 #define RTOS_CFG_NUM_FIFO                           (3)
 #define RTOS_CFG_BUFFER_LENGTH                      (10)
-#define RTOS_CFG_BUFFER_DATA                        U4
+#define RTOS_CFG_BUFFER_DATA                        U4                     /* Data type for queue */
 
 /* Semaphores */
 #define RTOS_CFG_OS_SEMAPHORE_ENABLED               (RTOS_CONFIG_TRUE)
