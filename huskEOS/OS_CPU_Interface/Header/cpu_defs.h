@@ -23,24 +23,28 @@ typedef signed long    S8;
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
+/* CPU Information */
 #define OS_UWORD                      U4   
 #define OS_SWORD                      S4 
+#define STACK_DESCENDING              (0)
+#define STACK_ASCENDING               (1)
 #define OS_STACK                      OS_UWORD
-#define ONE                           (1)
 #define CPU_BUS_WORD_SIZE             (32)
+#define STACK_GROWTH                  (STACK_DESCENDING)
+
+/* General */
+#define ONE                           (1)
 #define ZERO                          (0)
 #define NULL                          (0)
-#define SYS_REG_ICSR_ADDR             ((U4*)0xE000ED04)
+
+/* Registers used by OS */
+#define SYS_REG_ICSR_ADDR             (*((volatile U4 *)0xE000ED04))
 #define NVIC_ST_CTRL_R                (*((volatile U4 *)0xE000E010)) 
 #define NVIC_ST_RELOAD_R              (*((volatile U4 *)0xE000E014)) 
 #define NVIC_ST_CURRENT_R             (*((volatile U4 *)0xE000E018)) 
 #define NVIC_ST_CALIBRATE_R           (*((volatile U4 *)0xE000E01C))
 #define NVIC_ST_PRIORITY_R            (*((volatile U1 *)0xE000ED23))
 #define NVIC_PENDSV_PRIORITY_R        (*((volatile U1 *)0xE000ED22))
-  
-#define STACK_DESCENDING              (0)
-#define STACK_ASCENDING               (1)
-#define STACK_GROWTH                  (STACK_DESCENDING)
 
 
 /*************************************************************************/
