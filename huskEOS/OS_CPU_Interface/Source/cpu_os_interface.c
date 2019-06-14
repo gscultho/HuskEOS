@@ -72,29 +72,32 @@ static U1 u1_intNestCounter;
 /*************************************************************************/
 void vd_cpu_init(U4 numMs)
 {
-  u4_periodMs         = ZERO;
-  u1_intNestCounter   = ZERO;
+  u4_periodMs         = (U4)ZERO;
+  u1_intNestCounter   = (U1)ZERO;
   
-  SYSTICK_PRIORITY_SET_R |= OS_TICK_PRIORITY;
-  PENDSV_PRIORITY_SET_R  |= PENDSV_PRIORITY;
+  SYSTICK_PRIORITY_SET_R |= (U1)OS_TICK_PRIORITY;
+  PENDSV_PRIORITY_SET_R  |= (U1)PENDSV_PRIORITY;
+  
+  vd_cpu_disableInterruptsOSStart();
   vd_cpu_sysTickSet(numMs);
 }
 
 /*************************************************************************/
-/*  Function Name: vd_cpu_taskStackInit                                  */
+/*  Function Name: sp_cpu_taskStackInit                                  */
 /*  Purpose:       Initialize relevant parameters in task stack.         */
 /*  Arguments:     void* newTaskFcn:                                     */
 /*                       Function pointer to task routine.               */
-/*                 void* sp:                                             */
+/*                 OS_STACK* sp:                                         */
 /*                       Pointer to bottom of task stack (highest mem.   */
 /*                       address).                                       */
-/*  Return:        N/A                                                   */
+/*  Return:        os_t_p_sp:                                            */
+/*                       New stack pointer.                              */
 /*************************************************************************/
-void* vdp_cpu_taskStackInit(void (*newTaskFcn)(void), void* sp)
+OS_STACK* sp_cpu_taskStackInit(void (*newTaskFcn)(void), OS_STACK* sp)
 {
   S1        s1_t_index;
   OS_STACK *os_t_p_stackFrame;
-  void     *vd_t_p_sp;
+  OS_STACK *os_t_p_sp;
 
   os_t_p_stackFrame = sp;
   
@@ -107,9 +110,9 @@ void* vdp_cpu_taskStackInit(void (*newTaskFcn)(void), void* sp)
     os_t_p_stackFrame[s1_t_index] = (U4)ZERO;
   }
   
-   vd_t_p_sp = &os_t_p_stackFrame[s1_t_index + ONE]; /* index is -16 at this point, want -15 */
+   os_t_p_sp = &os_t_p_stackFrame[s1_t_index + ONE]; /* index is -16 at this point, want -15 */
   
-  return (vd_t_p_sp);
+  return (os_t_p_sp);
 }  
 
 /*************************************************************************/
@@ -241,7 +244,7 @@ static void vd_cpu_sysTickSet(U4 numMs)
 {
   U4 u4_t_scale;
   
-  u4_t_scale  = SYSTICK_CALBIRATION_R + 1;
+  u4_t_scale  = SYSTICK_CALBIRATION_R + ONE;
   u4_t_scale &= SYSTICK_24_BIT_MASK;
   
   /* Get scale to 1 ms */
