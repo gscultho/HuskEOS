@@ -24,7 +24,7 @@
 /*************************************************************************/
 typedef struct 
 {
-  void*      stackPtr; /* Task stack pointer must be first entry in struct. */
+  OS_STACK*  stackPtr; /* Task stack pointer must be first entry in struct. */
   U1         flags;
   U4         sleepCntr;
   void*      resource;
