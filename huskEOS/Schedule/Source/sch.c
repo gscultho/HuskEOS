@@ -1,5 +1,5 @@
 /*************************************************************************/
-/*  File Name: sch_main.c                                                */
+/*  File Name: sch.c                                                     */
 /*  Purpose: Init and routines for scheduler module and task handling.   */
 /*  Created by: Garrett Sculthorpe on 2/29/19.                           */
 /*************************************************************************/
@@ -7,9 +7,7 @@
 /*************************************************************************/
 /*  Includes                                                             */
 /*************************************************************************/
-#include "rtos_cfg.h"
 #include "sch.h"
-#include "cpu_os_interface.h"
 
 #if(RTOS_CFG_OS_MAILBOX_ENABLED == RTOS_CONFIG_TRUE)
 #include "mbox_internal_IF.h"     
@@ -110,9 +108,9 @@ void vd_OS_init(U4 numMsPeriod)
   u4_s_tickCntr      = (U1)ZERO;
 
   /* Initialize task list to default values */
-  for(u1_t_index = (U1)ZERO; u1_t_index < SCH_MAX_NUM_TASKS; u1_t_index++)
+  for(u1_t_index = (U1)ZERO; u1_t_index < (U1)SCH_MAX_NUM_TASKS; u1_t_index++)
   {
-    SchTask_s_as_taskList[u1_t_index].stackPtr   = (void*)NULL;
+    SchTask_s_as_taskList[u1_t_index].stackPtr   = (OS_STACK*)NULL;
     SchTask_s_as_taskList[u1_t_index].flags      = (U1)ZERO;
     SchTask_s_as_taskList[u1_t_index].sleepCntr  = (U4)ZERO;
     SchTask_s_as_taskList[u1_t_index].resource   = (void*)NULL;
@@ -159,7 +157,8 @@ U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack)
 #else 
   #error "STACK DIRECTION NOT PROPERLY DEFINED"
 #endif
-  SchTask_s_as_taskList[u1_s_numTasks].stackPtr    = vdp_cpu_taskStackInit(newTaskFcn, sp);
+  
+  SchTask_s_as_taskList[u1_s_numTasks].stackPtr    =  sp_cpu_taskStackInit(newTaskFcn, sp);
   *SchTask_s_as_taskList[u1_s_numTasks].topOfStack = (OS_STACK)SCH_TOP_OF_STACK_MARK;
   /* Increment number of tasks */
   ++u1_s_numTasks;
