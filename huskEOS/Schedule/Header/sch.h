@@ -14,7 +14,7 @@
 /*  Definitions                                                          */
 /*************************************************************************/
 #if(RTOS_CONFIG_IDLE_BG_TASK == RTOS_CONFIG_TRUE) 
-  #define SCH_MAX_NUM_TASKS                      (RTOS_CONFIG_MAX_NUM_TASKS + 1)
+  #define SCH_MAX_NUM_TASKS                      (RTOS_CONFIG_MAX_NUM_TASKS + ONE)
 #else
   #define SCH_MAX_NUM_TASKS                      (RTOS_CONFIG_MAX_NUM_TASKS)
 #endif
@@ -35,10 +35,15 @@
 #define SCH_TASK_WAKEUP_FLAGS_EVENT              (0x04)
 
 
-#define OS_SCH_ENTER_CRITICAL(void)            (OS_CPU_ENTER_CRITICAL(void))
-#define OS_SCH_EXIT_CRITICAL(void)             (OS_CPU_EXIT_CRITICAL(void)) 
-#define u1_OSsch_maskInterrupts(c)             (OS_CPU_MASK_SCHEDULER_TICK(c))
-#define vd_OSsch_unmaskInterrupts(c)           (OS_CPU_UNMASK_SCHEDULER_TICK(c))
+#define OS_SCH_ENTER_CRITICAL(void)              (OS_CPU_ENTER_CRITICAL(void))
+#define OS_SCH_EXIT_CRITICAL(void)               (OS_CPU_EXIT_CRITICAL(void)) 
+#define u1_OSsch_maskInterrupts(c)               (OS_CPU_MASK_SCHEDULER_TICK(c))
+#define vd_OSsch_unmaskInterrupts(c)             (OS_CPU_UNMASK_SCHEDULER_TICK(c))
+
+/*************************************************************************/
+/*  Data Types                                                           */
+/*************************************************************************/
+
 
 /*************************************************************************/
 /*  Public Functions                                                     */
@@ -51,6 +56,7 @@ U4   u4_OSsch_getCurrentTickPeriodMs(void);
 U1   u1_OSsch_getReasonForWakeup(void);
 U4   u4_OSsch_getTicks(void);
 U1   u1_OSsch_getCurrentTask(void);
+U1   u1_OSsch_getCPULoad(void);
 void vd_OSsch_setNewTickPeriod(U4 numMsReload);
 void vd_OSsch_taskYield(void);
 void vd_OSsch_taskSleep(U4 period);
