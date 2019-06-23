@@ -56,7 +56,9 @@ extern void OSTaskFault(void);
 #define SCH_TASK_RESOURCE_SLEEP_CHECK_MASK       (SCH_TASK_FLAG_SLEEP_MBOX | SCH_TASK_FLAG_SLEEP_QUEUE | SCH_TASK_FLAG_SLEEP_SEMA | SCH_TASK_FLAG_SLEEP_FLAGS)
 #define SCH_YIELD_TASK_NOT_SET                   (0xFF)
 #define SCH_TOP_OF_STACK_MARK                    (0xF0F0F0F0)
-  
+#define SCH_ONE_HUNDRED_PERCENT                  (100)
+#define SCH_HUNDRED_TICKS                        (100)
+
 /*************************************************************************/
 /*  Global Variables, Constants                                          */
 /*************************************************************************/
@@ -69,6 +71,10 @@ static U4 u4_s_tickCntr;
 static OS_STACK u4_backgroundStack[SCH_BG_TASK_STACK_SIZE];
 #endif
 static Sch_Task SchTask_s_as_taskList[SCH_MAX_NUM_TASKS];
+
+#if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
+static OS_RunTimeStats OS_s_cpuData;
+#endif
 
 /* Note: These global variables are modified by asm routine */
 Sch_Task* tcb_g_p_currentTaskBlock;
@@ -117,7 +123,13 @@ void vd_OS_init(U4 numMsPeriod)
     SchTask_s_as_taskList[u1_t_index].wakeReason = (U1)ZERO;
   }
   
-  tcb_g_p_currentTaskBlock =  (void*)SCH_TCB_PTR_INIT;
+  tcb_g_p_currentTaskBlock =  (Sch_Task*)SCH_TCB_PTR_INIT;
+  
+#if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
+  OS_s_cpuData.CPUIdlePercent.CPU_idleAvg           = (U1)ZERO;
+  OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp = (U1)ZERO;
+  OS_s_cpuData.CPUIdlePercent.CPU_idleRunning       = (U4)ZERO;
+#endif
   
   vd_cpu_init(numMsPeriod);
  
@@ -158,8 +170,9 @@ U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack)
   #error "STACK DIRECTION NOT PROPERLY DEFINED"
 #endif
   
-  SchTask_s_as_taskList[u1_s_numTasks].stackPtr    =  sp_cpu_taskStackInit(newTaskFcn, sp);
+  SchTask_s_as_taskList[u1_s_numTasks].stackPtr    =  sp_cpu_taskStackInit(newTaskFcn, (OS_STACK*)sp);
   *SchTask_s_as_taskList[u1_s_numTasks].topOfStack = (OS_STACK)SCH_TOP_OF_STACK_MARK;
+  
   /* Increment number of tasks */
   ++u1_s_numTasks;
 
@@ -254,6 +267,17 @@ U4 u4_OSsch_getTicks(void)
 U1 u1_OSsch_getCurrentTask(void)
 {
   return(u1_s_taskTCBIndex);
+}
+
+/*************************************************************************/
+/*  Function Name: u1_OSsch_getCPULoad                                   */
+/*  Purpose:       Returns CPU load averaged over 100 ticks.             */
+/*  Arguments:     N/A                                                   */
+/*  Return:        U1: CPU load as a percentage.                         */
+/*************************************************************************/
+U1 u1_OSsch_getCPULoad(void)
+{
+  return ((U1)SCH_ONE_HUNDRED_PERCENT - OS_s_cpuData.CPUIdlePercent.CPU_idleAvg);
 }
 
 /*************************************************************************/
@@ -382,7 +406,6 @@ U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime)
   /* Resume tick interrupts and enable context switch interrupt. */
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
 
-  
   return(u4_s_tickCntr);  
 }
 
@@ -402,6 +425,13 @@ void vd_OSsch_taskWake(U1 taskIndex)
   SchTask_s_as_taskList[taskIndex].sleepCntr =   (U4)ZERO; 
   SchTask_s_as_taskList[taskIndex].flags    &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP|SCH_TASK_FLAG_STS_SUSPENDED));
   
+#if(RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE && RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
+  if(u1_s_taskTCBIndex == (u1_s_numTasks - ONE))
+  {
+    OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += (u1_cpu_getPercentOfTick() - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
+  }
+#endif
+    
   /* Is woken up task higher priority than current task ? */
   if(taskIndex < u1_s_taskTCBIndex)
   {
@@ -464,10 +494,29 @@ __irq void SysTick_Handler(void)
   
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
   u1_t_intMask = u1_OSsch_maskInterrupts();
+
+  ++u4_s_tickCntr;
   
+#if(RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
+
+#if(RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
+  if(u1_s_taskTCBIndex == (u1_s_numTasks - ONE))
+  {
+    OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += ((U1)SCH_ONE_HUNDRED_PERCENT - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
+  }
+  
+  if(!(u4_s_tickCntr % SCH_HUNDRED_TICKS))
+  {
+    OS_s_cpuData.CPUIdlePercent.CPU_idleAvg     = (U1)(OS_s_cpuData.CPUIdlePercent.CPU_idleRunning/(U4)SCH_HUNDRED_TICKS);
+    OS_s_cpuData.CPUIdlePercent.CPU_idleRunning = (U1)ZERO;
+  }
+  
+  OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp = (U1)ZERO;
+#endif
+  
+#endif  
   /* Not a yielding or blocking scheduler call */
   u1_s_tickFlg = (U1)SCH_TICK_FLAG_TRUE;
-  ++u4_s_tickCntr;
   
   vd_sch_main();
 
@@ -589,7 +638,7 @@ static void vd_sch_main(void)
   
 #if (RTOS_CONFIG_BG_TASK == SCH_TRUE)
   /* Scheduler background task does not take priority over a yielding task */
-  if((u1_s_taskTCBIndex == (u1_s_numTasks - 1)) && (u1_t_yieldTask != (U1)SCH_YIELD_TASK_NOT_SET))
+  if((u1_s_taskTCBIndex == (u1_s_numTasks - ONE)) && (u1_t_yieldTask != (U1)SCH_YIELD_TASK_NOT_SET))
   {
     u1_s_taskTCBIndex = u1_t_yieldTask;
   }
@@ -635,6 +684,10 @@ static void vd_sch_background(void)
         OSTaskFault();
       }
     }
+#endif
+    
+#if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
+    OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp = u1_cpu_getPercentOfTick();
 #endif
     
 #if(RTOS_CONFIG_ENABLE_BACKGROUND_IDLE_SLEEP == RTOS_CONFIG_TRUE)
@@ -687,7 +740,9 @@ static U1 u1_sch_checkStack(U1 taskIndex)
 /*                                Application can now determine if task woke up due to timeout,*/
 /*                                or a resource became available.                              */
 /*                                                                                             */
-/* 1.5                5/9/19      Added stack overflow detection.                              */
+/* 1.5                6/9/19      Added stack overflow detection.                              */
 /*                                                                                             */
-/* 1.6                5/9/19      Added u4_OSsch_taskSleepSetFreq to support task execution at */
+/* 1.6                6/9/19      Added u4_OSsch_taskSleepSetFreq to support task execution at */
 /*                                set frequencies.                                             */
+/*                                                                                             */
+/* 1.7                6/22/19     Added API to get CPU load during runtime.                    */
