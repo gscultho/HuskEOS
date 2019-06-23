@@ -47,7 +47,7 @@ extern void UnmaskInterrupt(U1);
 /*************************************************************************/
 /*  Global Variables, Constants                                          */
 /*************************************************************************/
-
+static clockReg reg_s_currentReloadVal;
 
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
@@ -75,6 +75,7 @@ void vd_cpu_init(U4 numMs)
   u4_periodMs         = (U4)ZERO;
   u1_intNestCounter   = (U1)ZERO;
   
+  reg_s_currentReloadVal  = (U4)ZERO;
   SYSTICK_PRIORITY_SET_R |= (U1)OS_TICK_PRIORITY;
   PENDSV_PRIORITY_SET_R  |= (U1)PENDSV_PRIORITY;
   
@@ -234,6 +235,25 @@ void vd_cpu_setNewSchedPeriod(U4 numMs)
 }
 
 /*************************************************************************/
+/*  Function Name: u1_cpu_getPercentOfTick                               */
+/*  Purpose:       Return number of clock cycles done in current tick.   */
+/*  Arguments:     N/A                                                   */
+/*  Return:        Number of clock cycles.                               */
+/*************************************************************************/
+U1 u1_cpu_getPercentOfTick(void)
+{
+  U4 u4_t_calculation;
+  
+  if(reg_s_currentReloadVal != (U4)ZERO)
+  {
+    u4_t_calculation = (reg_s_currentReloadVal - (SYSTICK_24_BIT_MASK & SYSTICK_CURRENT_COUNT_R))*100;
+    
+    return(u4_t_calculation/reg_s_currentReloadVal);
+  }
+  else return ((U1)ZERO);
+}
+
+/*************************************************************************/
 /*  Function Name: vd_cpu_sysTickSe                                      */
 /*  Purpose:       Configure SysTick registers.                          */
 /*  Arguments:     U4 numMs:                                             */
@@ -254,11 +274,11 @@ static void vd_cpu_sysTickSet(U4 numMs)
   /* SysTick overflow check */
   numMs &= (U4)SYSTICK_24_BIT_MASK;
   
-  SYSTICK_CONTROL_R      &= ~(SYSTICK_DISABLED);       // 1) disable SysTick during setup 
-  SYSTICK_RELOAD_R        = --numMs;                   // 2) Reload value 
-  SYSTICK_CURRENT_COUNT_R = CPU_FALSE;                 // 3) any write to CURRENT clears it 
-  
-  SYSTICK_CONTROL_R |= (U1)SYSTICK_CTRL_EXTERNAL_CLK;  // 4) enable SysTick with core clock
+  SYSTICK_CONTROL_R      &= ~(SYSTICK_DISABLED);            // 1) disable SysTick during setup 
+  SYSTICK_RELOAD_R        = --numMs;                        // 2) Reload value 
+  SYSTICK_CURRENT_COUNT_R = CPU_FALSE;                      // 3) any write to CURRENT clears it  
+  SYSTICK_CONTROL_R      |= (U1)SYSTICK_CTRL_EXTERNAL_CLK;  // 4) enable SysTick with core clock
+  reg_s_currentReloadVal  = numMs;
 }
 
 
@@ -272,4 +292,6 @@ static void vd_cpu_sysTickSet(U4 numMs)
 /* 0.2                4/1/19      Added APIs to pause and resume SysTick without resetting it. */
 /* 0.3                5/29/19     Removed several APIs not needed.                             */
 /* 0.4                5/30/19     Added APIs for handling interrupt enabling/masking           */ 
+/* 0.5                6/22/19     API for CPU load calculation support.                        */
+/*                                                                                             */
 /*                                                                                             */
