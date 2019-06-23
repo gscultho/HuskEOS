@@ -35,6 +35,7 @@ typedef signed long    S8;
 /* General */
 #define ONE                           (1)
 #define ZERO                          (0)
+#define TEN                           (10)
 #define NULL                          (0)
 
 /* Registers used by OS */
