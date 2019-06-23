@@ -35,6 +35,21 @@ typedef struct
 }
 Sch_Task;
 
+#if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
+typedef struct
+{
+  U1 CPU_idleAvg;
+  U4 CPU_idleRunning;
+  U1 CPU_idlePrevTimestamp;
+}
+CPU_IdleCalc;
+
+typedef struct
+{
+  CPU_IdleCalc  CPUIdlePercent;
+}
+OS_RunTimeStats;
+#endif
 
 /*************************************************************************/
 /*  Public Functions                                                     */
