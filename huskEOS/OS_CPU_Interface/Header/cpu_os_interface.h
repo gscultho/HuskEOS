@@ -37,7 +37,7 @@
 /*************************************************************************/
 /*  Data Types                                                           */
 /*************************************************************************/
-
+typedef U4 clockReg;
 
 /*************************************************************************/
 /*  Public Functions                                                     */
@@ -51,6 +51,7 @@ void      vd_cpu_enableInterrupts(void);
 void      vd_cpu_disableInterrupts(void);
 U1        u1_cpu_maskInterrupts(U1 setMask);
 void      vd_cpu_unmaskInterrupts(U1 setMask);
+U1        u1_cpu_getPercentOfTick(void);
  
 /*************************************************************************/
 /*  Global Variables                                                     */
