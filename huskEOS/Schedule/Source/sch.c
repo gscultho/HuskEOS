@@ -2,6 +2,7 @@
 /*  File Name: sch.c                                                     */
 /*  Purpose: Init and routines for scheduler module and task handling.   */
 /*  Created by: Garrett Sculthorpe on 2/29/19.                           */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 /*************************************************************************/
@@ -673,6 +674,7 @@ static void vd_sch_background(void)
   U1 u1_t_index;
 
   for(;;)
+
   {    
     /* pre-sleep hook function goes here */
     
