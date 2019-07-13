@@ -2,6 +2,7 @@
 /*  File Name:  sch.h                                                    */
 /*  Purpose:    Header file for scheduler module.                        */
 /*  Created by: Garrett Sculthorpe on 2/9/19.                            */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef __SCH_H__ 
