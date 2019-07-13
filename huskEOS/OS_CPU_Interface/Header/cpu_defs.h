@@ -2,6 +2,7 @@
 /*  File Name:  cpu_defs.h                                               */
 /*  Purpose:    Definitions for OS hardware use.                         */
 /*  Created by: Garrett Sculthorpe on 2/10/2019.                         */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef cpu_defs_h /* Protection from declaring more than once */
