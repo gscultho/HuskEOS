@@ -2,6 +2,7 @@
 /*  File Name: flags.c                                                   */
 /*  Purpose: Flags services for application layer tasks.                 */
 /*  Created by: Garrett Sculthorpe on 3/24/19.                           */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
    
