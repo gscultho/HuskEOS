@@ -2,6 +2,7 @@
 /*  File Name:  queue.h                                                  */
 /*  Purpose:    Main header file for queue module.                       */
 /*  Created by: Garrett Sculthorpe on 3/16/19.                           */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef queue_h /* Protection from declaring more than once */
