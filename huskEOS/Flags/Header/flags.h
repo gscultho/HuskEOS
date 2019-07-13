@@ -2,6 +2,7 @@
 /*  File Name:  flags.h                                                  */
 /*  Purpose:    Public header file for flags module.                     */
 /*  Created by: Garrett Sculthorpe on 3/24/19                            */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef flags_h /* Protection from declaring more than once */
