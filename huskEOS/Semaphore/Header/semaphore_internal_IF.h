@@ -2,6 +2,7 @@
 /*  File Name:  semaphore_internal_IF.h                                  */
 /*  Purpose:    Kernel access definitions and routines for semaphore.    */
 /*  Created by: Garrett Sculthorpe on 5/23/19                            */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef semaphore_internal_IF_h /* Protection from declaring more than once */
