@@ -2,6 +2,7 @@
 /*  File Name:  rtos_cfg.h                                               */
 /*  Purpose:    Configuration for RTOS.                                  */
 /*  Created by: Garrett Sculthorpe on 2/28/2019                          */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef rtos_cfg_h /* Protection from declaring more than once */
