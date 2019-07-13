@@ -2,6 +2,7 @@
 /*  File Name:  flags_internal_IF.h                                      */
 /*  Purpose:    Kernel access definitions and routines for flags.        */
 /*  Created by: Garrett Sculthorpe on 5/20/19                            */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef flags_internal_IF_h /* Protection from declaring more than once */
