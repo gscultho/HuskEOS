@@ -2,6 +2,7 @@
 /*  File Name:  cpu_os_interface.h                                       */
 /*  Purpose:    Scheduler HW interface.                                  */
 /*  Created by: Garrett Sculthorpe on 2/10/2019.                         */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef cpu_os_interface_h /* Protection from declaring more than once */
