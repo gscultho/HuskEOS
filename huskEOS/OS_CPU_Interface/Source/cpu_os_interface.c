@@ -3,6 +3,7 @@
 /*  Purpose: APIs for scheduler to interface with hardware.              */
 /*  Compiler: ARM C/C++ Compiler, 5.03 [Build 76]                        */
 /*  Created by: Garrett Sculthorpe on 2/12/19.                           */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 /*************************************************************************/
