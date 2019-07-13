@@ -2,6 +2,7 @@
 /*  File Name:  semaphore.h                                              */
 /*  Purpose:    Header file for semaphore module.                        */
 /*  Created by: Garrett Sculthorpe on 3/3/19                             */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef semaphore_h /* Protection from declaring more than once */
