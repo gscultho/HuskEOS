@@ -2,6 +2,7 @@
 /*  File Name:  mbox_internal_IF.h                                       */
 /*  Purpose:    Kernel access definitions and routines for mailbox.      */
 /*  Created by: Garrett Sculthorpe on 3/3/19                             */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef mbox_internal_IF_h /* Protection from declaring more than once */
