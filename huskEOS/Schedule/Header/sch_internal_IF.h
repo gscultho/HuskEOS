@@ -2,6 +2,7 @@
 /*  File Name:  sch_internal_IF.h                                        */
 /*  Purpose:    Kernel access definitions and routines for scheduler.    */
 /*  Created by: Garrett Sculthorpe on 5/20/2019                          */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef sch_internal_IF_h /* Protection from declaring more than once */
