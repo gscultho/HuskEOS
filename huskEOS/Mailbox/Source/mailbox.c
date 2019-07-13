@@ -2,6 +2,7 @@
 /*  File Name: mailbox.c                                                 */
 /*  Purpose: Mailbox services for application layer tasks.               */
 /*  Created by: Garrett Sculthorpe on 3/3/19.                            */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 /* Each created mailbox is to be used by only one sender and one receiver 
