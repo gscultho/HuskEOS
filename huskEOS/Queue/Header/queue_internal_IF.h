@@ -2,6 +2,7 @@
 /*  File Name:  queue_internal_IF.h                                      */
 /*  Purpose:    Kernel access definitions and routines for FIFO.         */
 /*  Created by: Garrett Sculthorpe on 5/25/19                            */
+/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
 #ifndef queue_internal_IF_h /* Protection from declaring more than once */
