@@ -5,27 +5,37 @@
 /*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
-#ifndef sch_internal_IF_h /* Protection from declaring more than once */
+#ifndef sch_internal_IF_h 
 #define sch_internal_IF_h
 
-#include "cpu_defs.h"
 #include "rtos_cfg.h"
-#include "cpu_os_interface.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
+#define SCH_MAX_NUM_TASKS                   (RTOS_CONFIG_MAX_NUM_TASKS + ONE)  
 #define SCH_TASK_SLEEP_RESOURCE_MBOX        (SCH_TASK_WAKEUP_MBOX_READY)
 #define SCH_TASK_SLEEP_RESOURCE_QUEUE       (SCH_TASK_WAKEUP_QUEUE_READY)
-#define SCH_TASK_SLEEP_RESOURCE_SEMA        (SCH_TASK_WAKEUP_SEMA_READY)
+#define SCH_TASK_SLEEP_RESOURCE_SEMA        (SCH_TASK_WAKEUP_SEMA_READY)      //how are these defined? just use the ones in sch.h
 #define SCH_TASK_SLEEP_RESOURCE_FLAGS       (SCH_TASK_WAKEUP_FLAGS_EVENT)
   
+
 /*************************************************************************/
 /*  Data Types                                                           */
 /*************************************************************************/
-typedef struct 
+struct ListNode; /* Forward declaration. Defined in "listMgr_internal.h" */
+
+typedef struct TaskInfo //probs not needed
+{
+  U1 priority;
+  U1 taskID;
+}
+TaskInfo;
+
+typedef struct Sch_Task
 {
   OS_STACK*  stackPtr; /* Task stack pointer must be first entry in struct. */
+  TaskInfo   taskInfo;
   U1         flags;
   U4         sleepCntr;
   void*      resource;
@@ -53,14 +63,46 @@ OS_RunTimeStats;
 #endif
 
 /*************************************************************************/
+/*  External References                                                  */
+/*************************************************************************/  
+extern struct ListNode* Node_s_ap_mapTaskIDToTCB[SCH_MAX_NUM_TASKS];
+
+/*************************************************************************/
 /*  Public Functions                                                     */
 /*************************************************************************/
-void vd_sch_setReasonForWakeup(U1 reason, U1 wakeupTaskID);
+/*************************************************************************/
+/*  Function Name: vd_sch_setReasonForWakeup                             */
+/*  Purpose:       Set reason for wakeup to resource available. Called   */
+/*                 internal to RTOS by other RTOS modules.               */
+/*  Arguments:     U1 reason:                                            */
+/*                    Identifier code for wakeup reason.                 */
+/*                 Sch_Task* wakeupTaskTCB:                              */
+/*                    Pointer to task TCB that is being woken up which   */
+/*                    was stored on resource blocked list.               */
+/*  Return:        void                                                  */
+/*************************************************************************/
+void vd_sch_setReasonForWakeup(U1 reason, Sch_Task* wakeupTaskTCB);
+
+/*************************************************************************/
+/*  Function Name: vd_sch_setReasonForSleep                              */
+/*  Purpose:       Set reason for task sleep according to mask.          */
+/*  Arguments:     void* taskSleepResource:                              */
+/*                       Address of resource task is blocked on.         */
+/*  Return:        void                                                  */
+/*************************************************************************/
 void vd_sch_setReasonForSleep(void* taskSleepResource, U1 resourceType);
+
+/*************************************************************************/
+/*  Function Name: tcb_OSsch_getCurrentTCB                               */
+/*  Purpose:       Returns pointer to current TCB for block list storage.*/
+/*  Arguments:     N/A                                                   */
+/*  Return:        Sch_Task*: Current TCB address.                       */
+/*************************************************************************/
+Sch_Task* tcb_OSsch_getCurrentTCB(void);
 
 /*************************************************************************/
 /*  Global Variables                                                     */
 /*************************************************************************/
 
 
-#endif /* End conditional declaration for sch_internal_IF_h */
+#endif 
