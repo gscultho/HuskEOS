@@ -8,6 +8,28 @@
 /*************************************************************************/
 /*  Includes                                                             */
 /*************************************************************************/
+
+//testing
+
+#include <stdint.h>
+#include <stdbool.h>
+#include "sysctl.h"
+#include "gpio.h"
+#include "hw_memmap.h"
+#include "hw_gpio.h"
+#include "hw_types.h"
+#include "pin_map.h"
+#include "uart.h"
+#include "uartstdio.h"
+
+
+
+
+
+#include "cpu_defs.h"
+#include "rtos_cfg.h"
+#include "sch_internal_IF.h"
+#include "listMgr_internal.h"
 #include "sch.h"
 
 #if(RTOS_CFG_OS_MAILBOX_ENABLED == RTOS_CONFIG_TRUE)
@@ -18,7 +40,7 @@
 #include "queue_internal_IF.h"
 #endif
 
-#if(RTOS_CFG_OS_SEMA_ENABLED == RTOS_CONFIG_TRUE)
+#if(RTOS_CFG_OS_SEMAPHORE_ENABLED == RTOS_CONFIG_TRUE)
 #include "semaphore_internal_IF.h"
 #endif
 
@@ -40,38 +62,51 @@ extern void OSTaskFault(void);
                                                   RTOS_CFG_OS_SEMAPHORE_ENABLED | \
                                                   RTOS_CFG_OS_FLAGS_ENABLED)
                                                   
+#define SCH_NUM_TASKS_ZERO                       (0)
 #define SCH_TRUE                                 (1)
 #define SCH_FALSE                                (0)
-#define SCH_TICK_FLAG_TRUE                       (SCH_TRUE)            
-#define SCH_TICK_FLAG_FALSE                      (SCH_FALSE)
 #define SCH_TCB_PTR_INIT                         (NULL)
 #define SCH_TASK_FLAG_STS_SLEEP                  (0x10)
 #define SCH_TASK_FLAG_STS_SUSPENDED              (0x20) 
-#define SCH_TASK_FLAG_STS_YIELD                  (0x40)
 #define SCH_TASK_FLAG_SLEEP_MBOX                 (SCH_TASK_WAKEUP_MBOX_READY)
 #define SCH_TASK_FLAG_SLEEP_QUEUE                (SCH_TASK_WAKEUP_QUEUE_READY)
 #define SCH_TASK_FLAG_SLEEP_SEMA                 (SCH_TASK_WAKEUP_SEMA_READY)
 #define SCH_TASK_FLAG_SLEEP_FLAGS                (SCH_TASK_WAKEUP_FLAGS_EVENT)
-#define SCH_TASK_YIELD                           (0)
-#define SCH_TASK_FLAG_STS_CHECK                  (SCH_TASK_FLAG_STS_SLEEP | SCH_TASK_FLAG_STS_SUSPENDED | SCH_TASK_FLAG_STS_YIELD) 
+#define SCH_TASK_FLAG_STS_CHECK                  (SCH_TASK_FLAG_STS_SLEEP | SCH_TASK_FLAG_STS_SUSPENDED) 
 #define SCH_TASK_RESOURCE_SLEEP_CHECK_MASK       (SCH_TASK_FLAG_SLEEP_MBOX | SCH_TASK_FLAG_SLEEP_QUEUE | SCH_TASK_FLAG_SLEEP_SEMA | SCH_TASK_FLAG_SLEEP_FLAGS)
-#define SCH_YIELD_TASK_NOT_SET                   (0xFF)
 #define SCH_TOP_OF_STACK_MARK                    (0xF0F0F0F0)
 #define SCH_ONE_HUNDRED_PERCENT                  (100)
 #define SCH_HUNDRED_TICKS                        (100)
+#define SCH_CPU_NOT_SLEEPING                     (SCH_FALSE)
+#define SCH_CPU_SLEEPING                         (SCH_TRUE)
+#define SCH_FIRST_TCB_NODE                       (ZERO)
+#define SCH_TASK_PRIORITY_UNDEFINED              (0xFF)
+#define SCH_TASK_LOWEST_PRIORITY                 (0xF0)
+#define SCH_INVALID_TASK_ID                      (0xFF)
+#define SCH_BG_TASK_ID                           (0x00)
 
 /*************************************************************************/
 /*  Global Variables, Constants                                          */
 /*************************************************************************/
+/* Used for internal modules to quickly get pointer to task node from task ID */
+ListNode* Node_s_ap_mapTaskIDToTCB[SCH_MAX_NUM_TASKS];
+
+/*************************************************************************/
+/*  Static Global Variables, Constants                                   */
+/*************************************************************************/
 static U1 u1_s_numTasks;
-static U1 u1_s_tickFlg; /* Protected by scheduler critical section */
-static U1 u1_s_taskTCBIndex;
 static U4 u4_s_tickCntr;
+static U1 u1_s_sleepState;
+static ListNode* node_s_p_headOfWaitList;
+static ListNode* node_s_p_headOfReadyList;
 
 #if (RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
 static OS_STACK u4_backgroundStack[SCH_BG_TASK_STACK_SIZE];
 #endif
-static Sch_Task SchTask_s_as_taskList[SCH_MAX_NUM_TASKS];
+
+/* Allocate memory for data structures used for TCBs and scheduling queues */
+static ListNode   Node_s_as_listAllTasks[SCH_MAX_NUM_TASKS];     
+static Sch_Task   SchTask_s_as_taskList[SCH_MAX_NUM_TASKS];   
 
 #if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
 static OS_RunTimeStats OS_s_cpuData;
@@ -93,14 +128,15 @@ static void vd_sch_background(void);
 static U1 u1_sch_checkStack(U1 taskIndex);
 #endif
 
-static void vd_sch_main(void);
+static void vd_sch_periodicScheduler(void);
+static void vd_sch_setNextReadyTaskToRun(void);
 
 /*************************************************************************/
 
 /*************************************************************************/
 /*  Function Name: vd_OS_init                                            */
 /*  Purpose:       Initialize scheduler module and configured RTOS       */
-/*                 modukes.                                              */
+/*                 modules.                                              */
 /*  Arguments:     U4 numMsPeriod:                                       */
 /*                    Sets scheduler tick rate in milliseconds.          */
 /*  Return:        N/A                                                   */
@@ -109,22 +145,34 @@ void vd_OS_init(U4 numMsPeriod)
 {
   U1 u1_t_index;
   
-  u1_s_taskTCBIndex  = (U1)ZERO;
   u1_s_numTasks      = (U1)SCH_NUM_TASKS_ZERO;
-  u1_s_tickFlg       = (U1)SCH_TICK_FLAG_FALSE;
   u4_s_tickCntr      = (U1)ZERO;
-
-  /* Initialize task list to default values */
+  u1_s_sleepState    = (U1)SCH_CPU_NOT_SLEEPING;
+  
+  /* Initialize task and queue data to default values */
   for(u1_t_index = (U1)ZERO; u1_t_index < (U1)SCH_MAX_NUM_TASKS; u1_t_index++)
   {
-    SchTask_s_as_taskList[u1_t_index].stackPtr   = (OS_STACK*)NULL;
-    SchTask_s_as_taskList[u1_t_index].flags      = (U1)ZERO;
-    SchTask_s_as_taskList[u1_t_index].sleepCntr  = (U4)ZERO;
-    SchTask_s_as_taskList[u1_t_index].resource   = (void*)NULL;
-    SchTask_s_as_taskList[u1_t_index].wakeReason = (U1)ZERO;
+    SchTask_s_as_taskList[u1_t_index].stackPtr          = (OS_STACK*)NULL;
+    SchTask_s_as_taskList[u1_t_index].flags             = (U1)ZERO;
+    SchTask_s_as_taskList[u1_t_index].sleepCntr         = (U4)ZERO;
+    SchTask_s_as_taskList[u1_t_index].resource          = (void*)NULL;
+    SchTask_s_as_taskList[u1_t_index].wakeReason        = (U1)ZERO;
+    SchTask_s_as_taskList[u1_t_index].taskInfo.priority = (U1)SCH_TASK_PRIORITY_UNDEFINED;
+    SchTask_s_as_taskList[u1_t_index].taskInfo.taskID   = (U1)SCH_INVALID_TASK_ID;
+    
+    Node_s_ap_mapTaskIDToTCB[u1_t_index]                = (ListNode*)NULL;
+    
+    Node_s_as_listAllTasks[u1_t_index].nextNode         = (ListNode*)NULL;
+    Node_s_as_listAllTasks[u1_t_index].previousNode     = (ListNode*)NULL;
+    Node_s_as_listAllTasks[u1_t_index].TCB              = (Sch_Task*)NULL;
   }
   
-  tcb_g_p_currentTaskBlock =  (Sch_Task*)SCH_TCB_PTR_INIT;
+  /* Initialize linked list head pointers */
+  node_s_p_headOfWaitList   = (ListNode*)NULL;
+  node_s_p_headOfReadyList  = (ListNode*)NULL;
+  
+  /* Initialize running task pointer */
+  tcb_g_p_currentTaskBlock = (Sch_Task*)SCH_TCB_PTR_INIT;
   
 #if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
   OS_s_cpuData.CPUIdlePercent.CPU_idleAvg           = (U1)ZERO;
@@ -132,6 +180,15 @@ void vd_OS_init(U4 numMsPeriod)
   OS_s_cpuData.CPUIdlePercent.CPU_idleRunning       = (U4)ZERO;
 #endif
   
+  /* Create background task */
+  u1_OSsch_createTask(&vd_sch_background, 
+                      &u4_backgroundStack[SCH_BG_TASK_STACK_SIZE - ONE], 
+                      (U4)RTOS_CONFIG_BG_TASK_STACK_SIZE, 
+                      (U1)SCH_TASK_LOWEST_PRIORITY, 
+                      (U1)SCH_BG_TASK_ID);
+  
+  /* Mask interrupts until RTOS enters normal operation */
+  vd_cpu_disableInterruptsOSStart();
   vd_cpu_init(numMsPeriod);
  
 #if(RTOS_CFG_OS_MAILBOX_ENABLED == RTOS_CONFIG_TRUE)  
@@ -151,33 +208,61 @@ void vd_OS_init(U4 numMsPeriod)
 /*                 void* sp:                                             */
 /*                       Pointer to bottom of task stack (highest mem.   */
 /*                       address).                                       */
+/*                 U1 priority:                                          */
+/*                       Unique priority level for task. 0 = highest.    */
+/*                 U1 taskID:                                            */
+/*                       Task ID to refer to task when using APIs (cannot*/
+/*                       be changed).                                    */
 /*                                                                       */
 /*  Return:        SCH_TASK_CREATE_SUCCESS   OR                          */
 /*                 SCH_TASK_CREATE_DENIED                                */
 /*************************************************************************/
-U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack)
+U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack, U1 priority, U1 taskID)
 {
+  U1 u1_t_returnSts;
+  
   if(u1_s_numTasks >= (U1)SCH_MAX_NUM_TASKS)
   {
-    return ((U1)SCH_TASK_CREATE_DENIED);
+    u1_t_returnSts = (U1)SCH_TASK_CREATE_DENIED;
+  }
+  else if(Node_s_ap_mapTaskIDToTCB[taskID] != (void*)NULL)
+  {
+    u1_t_returnSts = (U1)SCH_TASK_CREATE_DENIED;
+  }
+  else
+  {
+    /* Map user configured task ID to the actual TCB location for later queries by user */
+    Node_s_ap_mapTaskIDToTCB[taskID] = &Node_s_as_listAllTasks[u1_s_numTasks];
+    
+    /* Set new task stack pointers */
+#if(RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT == RTOS_CONFIG_TRUE)   
+  #if(STACK_GROWTH == STACK_DESCENDING)
+    SchTask_s_as_taskList[u1_s_numTasks].topOfStack = ((OS_STACK*)sp - sizeOfStack + ONE);
+  #elif(STACK_GROWTH == STACK_ASCENDING)
+    SchTask_s_as_taskList[u1_s_numTasks].topOfStack = ((OS_STACK*)sp + sizeOfStack - ONE);
+  #else 
+    #error "STACK DIRECTION NOT PROPERLY DEFINED"
+  #endif /* STACK_GROWTH */
+    *SchTask_s_as_taskList[u1_s_numTasks].topOfStack = (OS_STACK)SCH_TOP_OF_STACK_MARK;
+#endif /* RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT */     
+    SchTask_s_as_taskList[u1_s_numTasks].stackPtr    =  sp_cpu_taskStackInit(newTaskFcn, (OS_STACK*)sp);
+    
+    /* Set new task priority */
+    SchTask_s_as_taskList[u1_s_numTasks].taskInfo.priority = priority;
+    
+    /* Set new linked list node content to newly formed TCB */
+    Node_s_as_listAllTasks[u1_s_numTasks].TCB = &SchTask_s_as_taskList[u1_s_numTasks];
+    
+    /* Put new task into ready queue sorted by priority */
+    vd_list_addTaskByPrio(&node_s_p_headOfReadyList, &Node_s_as_listAllTasks[u1_s_numTasks]);
+    
+    /* Increment number of tasks */
+    ++u1_s_numTasks;
+    
+    u1_t_returnSts = (U1)SCH_TASK_CREATE_SUCCESS;
   }
   
-  /* Set new task stack pointers */
-#if(STACK_GROWTH == STACK_DESCENDING)
-  SchTask_s_as_taskList[u1_s_numTasks].topOfStack = ((OS_STACK*)sp - sizeOfStack + ONE);
-#elif(STACK_GROWTH == STACK_ASCENDING)
-  SchTask_s_as_taskList[u1_s_numTasks].topOfStack = ((OS_STACK*)sp + sizeOfStack - ONE);
-#else 
-  #error "STACK DIRECTION NOT PROPERLY DEFINED"
-#endif
-  
-  SchTask_s_as_taskList[u1_s_numTasks].stackPtr    =  sp_cpu_taskStackInit(newTaskFcn, (OS_STACK*)sp);
-  *SchTask_s_as_taskList[u1_s_numTasks].topOfStack = (OS_STACK)SCH_TOP_OF_STACK_MARK;
-  
-  /* Increment number of tasks */
-  ++u1_s_numTasks;
-
-  return ((U1)SCH_TASK_CREATE_SUCCESS);
+  return (u1_t_returnSts);
 }
 
 /*************************************************************************/
@@ -188,14 +273,30 @@ U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack)
 /*************************************************************************/
 void vd_OSsch_start(void)
 {
-#if (RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
-  u1_OSsch_createTask(&vd_sch_background, &u4_backgroundStack[SCH_BG_TASK_STACK_SIZE - ONE], (U4)RTOS_CONFIG_BG_TASK_STACK_SIZE);
-#endif
-
   /* Start at highest priority task */
-  tcb_g_p_nextTaskBlock = &SchTask_s_as_taskList[ZERO];
+  tcb_g_p_nextTaskBlock = node_s_p_headOfReadyList->TCB;
+  
   vd_cpu_enableInterruptsOSStart();
   OS_CPU_TRIGGER_DISPATCHER();
+}
+
+/*************************************************************************/
+/*  Function Name: vd_OSsch_interruptEnter                               */
+/*  Purpose:       Must be called by ISRs external to OS at entry.       */
+/*  Arguments:     N/A                                                   */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
+void vd_OSsch_interruptEnter(void)
+{
+#if(RTOS_CONFIG_PRESLEEP_FUNC == RTOS_CONFIG_TRUE)
+  if(u1_s_sleepState == (U1)SCH_CPU_SLEEPING)
+  {  
+    /* pre-sleep hook function defined by application */
+    app_OSPostSleepFcn();
+    
+    u1_s_sleepState = (U1)SCH_CPU_NOT_SLEEPING;
+  }
+#endif
 }
 
 /*************************************************************************/
@@ -239,8 +340,8 @@ U1 u1_OSsch_getReasonForWakeup(void)
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
   u1_t_intMask = u1_OSsch_maskInterrupts();
   
-  u1_t_reason = SchTask_s_as_taskList[u1_s_taskTCBIndex].wakeReason;
-  SchTask_s_as_taskList[u1_s_taskTCBIndex].wakeReason = (U1)SCH_TASK_NO_WAKEUP_SINCE_LAST_CHECK;
+  u1_t_reason = tcb_g_p_currentTaskBlock->wakeReason;
+  tcb_g_p_currentTaskBlock->wakeReason = (U1)SCH_TASK_NO_WAKEUP_SINCE_LAST_CHECK;
   
   /* Resume tick interrupts and enable context switch interrupt. */
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
@@ -260,14 +361,36 @@ U4 u4_OSsch_getTicks(void)
 }
 
 /*************************************************************************/
-/*  Function Name: u1_OSsch_getCurrentTask                               */
-/*  Purpose:       Returns current TCB index.                            */
+/*  Function Name: u1_OSsch_getCurrentTaskPrio                           */
+/*  Purpose:       Returns current task priority.                        */
 /*  Arguments:     N/A                                                   */
-/*  Return:        U1 u1_s_taskTCBIndex (index of current task)          */
+/*  Return:        U1: Current task priority.                            */
 /*************************************************************************/
-U1 u1_OSsch_getCurrentTask(void)
+U1 u1_OSsch_getCurrentTaskPrio(void)
 {
-  return(u1_s_taskTCBIndex);
+  return(tcb_g_p_currentTaskBlock->taskInfo.priority);
+}
+
+/*************************************************************************/
+/*  Function Name: u1_OSsch_getCurrentTaskID                             */
+/*  Purpose:       Returns current task ID number.                       */
+/*  Arguments:     N/A                                                   */
+/*  Return:        U1: Current task ID.                                  */
+/*************************************************************************/
+U1 u1_OSsch_getCurrentTaskID(void)
+{
+  return(tcb_g_p_currentTaskBlock->taskInfo.taskID);
+}
+  
+/*************************************************************************/
+/*  Function Name: tcb_OSsch_getCurrentTCB                               */
+/*  Purpose:       Returns pointer to current TCB for block list storage.*/
+/*  Arguments:     N/A                                                   */
+/*  Return:        Sch_Task*: Current TCB address.                       */
+/*************************************************************************/
+Sch_Task* tcb_OSsch_getCurrentTCB(void)
+{
+  return(tcb_g_p_currentTaskBlock);
 }
 
 /*************************************************************************/
@@ -276,10 +399,12 @@ U1 u1_OSsch_getCurrentTask(void)
 /*  Arguments:     N/A                                                   */
 /*  Return:        U1: CPU load as a percentage.                         */
 /*************************************************************************/
+#if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
 U1 u1_OSsch_getCPULoad(void)
 {
   return ((U1)SCH_ONE_HUNDRED_PERCENT - OS_s_cpuData.CPUIdlePercent.CPU_idleAvg);
 }
+#endif
 
 /*************************************************************************/
 /*  Function Name: vd_OSsch_setNewTickPeriod                             */
@@ -299,21 +424,22 @@ void vd_OSsch_setNewTickPeriod(U4 numMsReload)
 /*                 internal to RTOS by other RTOS modules.               */
 /*  Arguments:     U1 reason:                                            */
 /*                    Identifier code for wakeup reason.                 */
-/*                 U1 wakeupTaskID:                                      */
-/*                    Task ID that is being woken up.                    */
+/*                 Sch_Task* wakeupTaskTCB:                              */
+/*                    Pointer to task TCB that is being woken up which   */
+/*                    was stored on resource blocked list.               */
 /*  Return:        void                                                  */
 /*************************************************************************/
-void vd_sch_setReasonForWakeup(U1 reason, U1 wakeupTaskID)
+void vd_sch_setReasonForWakeup(U1 reason, Sch_Task* wakeupTaskTCB)
 {
   U1 u1_t_intMask;
   
   u1_t_intMask = u1_OSsch_maskInterrupts();
   
-  SchTask_s_as_taskList[wakeupTaskID].resource   = (void*)NULL;
-  SchTask_s_as_taskList[wakeupTaskID].flags     &= ~((U1)reason);
-  SchTask_s_as_taskList[wakeupTaskID].wakeReason = reason;
+  wakeupTaskTCB->resource   = (void*)NULL;
+  wakeupTaskTCB->flags     &= ~((U1)reason);
+  wakeupTaskTCB->wakeReason = reason;
   
-  vd_OSsch_taskWake(wakeupTaskID);
+  vd_OSsch_taskWake(wakeupTaskTCB->taskInfo.taskID);
   
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
 }
@@ -331,53 +457,36 @@ void vd_sch_setReasonForSleep(void* taskSleepResource, U1 resourceType)
   
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
   u1_t_intMask = u1_OSsch_maskInterrupts();
-  SchTask_s_as_taskList[u1_s_taskTCBIndex].resource = taskSleepResource;
-  SchTask_s_as_taskList[u1_s_taskTCBIndex].flags   |= (U1)resourceType;
+  
+  tcb_g_p_currentTaskBlock->resource = taskSleepResource;
+  tcb_g_p_currentTaskBlock->flags   |= (U1)resourceType;
   
   /* Resume tick interrupts and enable context switch interrupt. */
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
 }
 
 /*************************************************************************/
-/*  Function Name: vd_OSsch_taskYield                                    */
-/*  Purpose:       Suspends task to see if higher                        */
-/*                 priority task can run before continuing.              */
-/*  Arguments:     N/A                                                   */
-/*  Return:        N/A                                                   */
-/*************************************************************************/
-void vd_OSsch_taskYield(void)
-{
-  vd_OSsch_taskSleep((U4)SCH_TASK_YIELD); 
-}
-
-/*************************************************************************/
 /*  Function Name: vd_OSsch_taskSleep                                    */
 /*  Purpose:       Suspend current task for a specified amount of time.  */
 /*  Arguments:     U4 u4_period:                                         */
-/*                    Time units to suspend for. sch_main handles timing.*/
+/*                    Time units to suspend for.                         */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
 void vd_OSsch_taskSleep(U4 period)
 {
-  U1 u1_t_intMask;
-  
+  U1             u1_t_intMask;
+
+  //GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
   u1_t_intMask = u1_OSsch_maskInterrupts();
   
-  if(period == (U4)SCH_TASK_YIELD)
-  {
-    /* Yield does not sleep. It only yields to highest priority waiting task, or returns to itself if none ready. */
-    SchTask_s_as_taskList[u1_s_taskTCBIndex].flags |= (U1)SCH_TASK_FLAG_STS_YIELD;
-  }
-  else
-  {
-    SchTask_s_as_taskList[u1_s_taskTCBIndex].sleepCntr = period; 
-    SchTask_s_as_taskList[u1_s_taskTCBIndex].flags    |= (U1)SCH_TASK_FLAG_STS_SLEEP;
-  }
+  tcb_g_p_currentTaskBlock->sleepCntr = period; 
+  tcb_g_p_currentTaskBlock->flags    |= (U1)SCH_TASK_FLAG_STS_SLEEP;
   
   /* Switch to an active task */
-  vd_sch_main();
-  
+  vd_sch_setNextReadyTaskToRun();
+  OS_CPU_TRIGGER_DISPATCHER();
+  //GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
   /* Resume tick interrupts and enable context switch interrupt. */
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
 }
@@ -393,16 +502,17 @@ void vd_OSsch_taskSleep(U4 period)
 /*************************************************************************/
 U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime)
 {
-  U1 u1_t_intMask;
+  U1 u1_t_intMask; 
 
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
   u1_t_intMask = u1_OSsch_maskInterrupts();
 
-  SchTask_s_as_taskList[u1_s_taskTCBIndex].sleepCntr = nextWakeTime - u4_s_tickCntr; 
-  SchTask_s_as_taskList[u1_s_taskTCBIndex].flags    |= (U1)SCH_TASK_FLAG_STS_SLEEP;
+  tcb_g_p_currentTaskBlock->sleepCntr = nextWakeTime - u4_s_tickCntr; 
+  tcb_g_p_currentTaskBlock->flags    |= (U1)SCH_TASK_FLAG_STS_SLEEP;
   
   /* Switch to an active task */
-  vd_sch_main();
+  vd_sch_setNextReadyTaskToRun();
+  OS_CPU_TRIGGER_DISPATCHER();
   
   /* Resume tick interrupts and enable context switch interrupt. */
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
@@ -423,23 +533,24 @@ void vd_OSsch_taskWake(U1 taskIndex)
   
   u1_t_intMask = u1_OSsch_maskInterrupts();
   
-  SchTask_s_as_taskList[taskIndex].sleepCntr =   (U4)ZERO; 
-  SchTask_s_as_taskList[taskIndex].flags    &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP|SCH_TASK_FLAG_STS_SUSPENDED));
+  Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB->sleepCntr  =   (U4)ZERO; 
+  Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB->sleepCntr &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP|SCH_TASK_FLAG_STS_SUSPENDED));
   
 #if(RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE && RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
-  if(u1_s_taskTCBIndex == (u1_s_numTasks - ONE))
+  if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[u1_s_numTasks - ONE].TCBNode->TCB))
   {
     OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += (u1_cpu_getPercentOfTick() - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
   }
 #endif
-    
+  
+  /* Add woken task to ready queue */
+  vd_list_addTaskByPrio(&node_s_p_headOfReadyList, Node_s_ap_mapTaskIDToTCB[taskIndex]);
+  
   /* Is woken up task higher priority than current task ? */
-  if(taskIndex < u1_s_taskTCBIndex)
-  {
-    u1_s_taskTCBIndex = taskIndex;
-    
+  if(node_s_p_headOfReadyList->TCB != tcb_g_p_currentTaskBlock)
+  { 
     /* Set global task pointer to new task control block */
-    tcb_g_p_nextTaskBlock = &SchTask_s_as_taskList[u1_s_taskTCBIndex];
+    tcb_g_p_nextTaskBlock = node_s_p_headOfReadyList->TCB;
     
     OS_CPU_TRIGGER_DISPATCHER();
   }
@@ -456,17 +567,25 @@ void vd_OSsch_taskWake(U1 taskIndex)
 /*************************************************************************/
 void vd_OSsch_taskSuspend(U1 taskIndex)
 {
-  U1 u1_t_intMask;
+  U1             u1_t_intMask;
+  ListNode* node_t_p_suspendTask;
   
-  u1_t_intMask = u1_OSsch_maskInterrupts();
+  u1_t_intMask         = u1_OSsch_maskInterrupts();
+  node_t_p_suspendTask = Node_s_ap_mapTaskIDToTCB[taskIndex];
   
-  SchTask_s_as_taskList[u1_s_taskTCBIndex].flags |= (U1)SCH_TASK_FLAG_STS_SUSPENDED;
-  
-  /* Is task suspending itself or another task? */
-  if(taskIndex == u1_s_taskTCBIndex)
+  if(Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB->flags != (U1)SCH_TASK_FLAG_STS_SUSPENDED)
   {
-    /* Switch to an active task. Ticker keeps ticking. */
-    vd_sch_main();
+    Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB->flags |= (U1)SCH_TASK_FLAG_STS_SUSPENDED;
+    vd_list_removeNode(node_t_p_suspendTask); 
+    vd_list_addNodeToEnd(&node_s_p_headOfWaitList, node_t_p_suspendTask);   //need to pass by reference not pointer 
+  }
+
+  /* Is task suspending itself or another task? */
+  if(Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB == tcb_g_p_currentTaskBlock)
+  {
+    /* Switch to an active task */
+    vd_sch_setNextReadyTaskToRun();
+    OS_CPU_TRIGGER_DISPATCHER();
   }
   /* Resume tick interrupts and enable context switch interrupt. */
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
@@ -493,6 +612,7 @@ __irq void SysTick_Handler(void)
 {
   U1 u1_t_intMask;
   
+  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
   u1_t_intMask = u1_OSsch_maskInterrupts();
 
@@ -501,7 +621,7 @@ __irq void SysTick_Handler(void)
 #if(RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
 
 #if(RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
-  if(u1_s_taskTCBIndex == (u1_s_numTasks - ONE))
+  if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[ZERO].TCBNode->TCB))
   {
     OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += ((U1)SCH_ONE_HUNDRED_PERCENT - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
   }
@@ -516,150 +636,130 @@ __irq void SysTick_Handler(void)
 #endif
   
 #endif  
-  /* Not a yielding or blocking scheduler call */
-  u1_s_tickFlg = (U1)SCH_TICK_FLAG_TRUE;
   
-  vd_sch_main();
-
+  vd_sch_periodicScheduler();
+  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
   /* Resume tick interrupts and enable context switch interrupt. */
   vd_OSsch_unmaskInterrupts(u1_t_intMask);
 }
 
 /*************************************************************************/
-/*  Function Name: vd_sch_main                                           */
+/*  Function Name: vd_sch_setNextReadyTaskToRun                          */
+/*  Purpose:       Select next task to run.                              */
+/*  Arguments:     N/A                                                   */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
+static void vd_sch_setNextReadyTaskToRun(void)
+{
+  ListNode* node_t_p_moveToWaitList;
+
+  /* Remove node of task that was previously executing */
+  node_t_p_moveToWaitList = node_list_removeFirstNode(&node_s_p_headOfReadyList);
+  
+  /* Move previous node to wait list */
+  vd_list_addNodeToFront(&node_s_p_headOfWaitList, node_t_p_moveToWaitList);
+  
+  tcb_g_p_nextTaskBlock = node_s_p_headOfReadyList->TCB;
+}
+
+/*************************************************************************/
+/*  Function Name: vd_sch_periodicScheduler                              */
 /*  Purpose:       Scheduler algorithm called to check if task is ready. */
 /*  Arguments:     N/A                                                   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-static void vd_sch_main(void)
+static void vd_sch_periodicScheduler(void)
 {
-  U1 u1_t_index;
-  U1 u1_t_taskReady;
-  U1 u1_t_yieldTask;
+  ListNode* node_t_p_check;
+  Sch_Task*      tcb_t_p_currentTCB;
   
-  u1_t_yieldTask = (U1)SCH_YIELD_TASK_NOT_SET;
-  
-  /* If current task has been set to sleep, reset current TCB number to pick new task */
-  if(SchTask_s_as_taskList[u1_s_taskTCBIndex].flags & (U1)SCH_TASK_FLAG_STS_CHECK)
+  if(node_s_p_headOfWaitList == NULL)
   {
-    u1_s_taskTCBIndex = u1_s_numTasks;
-  }
-  
-  /* Scheduler */
-  for(u1_t_index = ZERO; u1_t_index < u1_s_numTasks; u1_t_index++)
-  {
-    /* Default to lowest priority */
-    u1_t_taskReady = u1_s_numTasks;
-    
-    /* Task status handling. No flags set means task is ready. */
-    if(SchTask_s_as_taskList[u1_t_index].flags & (U1)SCH_TASK_FLAG_STS_CHECK)
-    {  
-      if(SchTask_s_as_taskList[u1_t_index].flags & (U1)SCH_TASK_FLAG_STS_SUSPENDED)
-      {
-        /* Task is suspended. Do nothing. */
-      }
-      /* If task has just yielded, store in case no other task is ready */
-      else if(SchTask_s_as_taskList[u1_t_index].flags & (U1)SCH_TASK_FLAG_STS_YIELD)
-      {
-        u1_t_yieldTask = u1_t_index;
-        SchTask_s_as_taskList[u1_t_index].flags &= ~((U1)SCH_TASK_FLAG_STS_YIELD);
-      }
-      /* Sleep/wake handling if millisecond flag set to true. If no other flag is set, sleep flag must be set. */
-      else if(u1_s_tickFlg == (U1)SCH_TICK_FLAG_TRUE)
-      {
-        /* Decrement sleep counter and check if zero */
-        if(--SchTask_s_as_taskList[u1_t_index].sleepCntr == (U1)ZERO)
-        {  
-#if(RTOS_RESOURCES_CONFIGURED)          
-          /* Task has timed out. Determine if due to manual sleep or resource */
-          switch(SchTask_s_as_taskList[u1_t_index].flags & (U1)SCH_TASK_RESOURCE_SLEEP_CHECK_MASK)
-          {
-            /* Remove task from resource's blocked list */
-  #if(RTOS_CFG_OS_MAILBOX_ENABLED == RTOS_CONFIG_TRUE)
-            case (U1)SCH_TASK_FLAG_SLEEP_MBOX:
-              vd_mbox_blockedTaskTimeout(SchTask_s_as_taskList[u1_t_index].resource);
-              SchTask_s_as_taskList[u1_t_index].resource = (void*)NULL;
-              break;
-  #endif          
-  #if(RTOS_CFG_OS_QUEUE_ENABLED == RTOS_CONFIG_TRUE)            
-            case (U1)SCH_TASK_FLAG_SLEEP_QUEUE:
-              vd_queue_blockedTaskTimeout(SchTask_s_as_taskList[u1_t_index].resource, u1_t_index);
-              SchTask_s_as_taskList[u1_t_index].resource = (void*)NULL;
-              break;
-  #endif   
-  #if(RTOS_CFG_OS_SEMAPHORE_ENABLED == RTOS_CONFIG_TRUE)            
-            case (U1)SCH_TASK_FLAG_SLEEP_SEMA:
-              vd_sema_blockedTimeout(SchTask_s_as_taskList[u1_t_index].resource, u1_t_index);
-              SchTask_s_as_taskList[u1_t_index].resource = (void*)NULL;
-              break;
-  #endif         
-  #if(RTOS_CFG_OS_FLAGS_ENABLED == RTOS_CONFIG_TRUE)            
-            case (U1)SCH_TASK_FLAG_SLEEP_FLAGS:
-              vd_flags_pendTimeout(SchTask_s_as_taskList[u1_t_index].resource);
-              SchTask_s_as_taskList[u1_t_index].resource = (void*)NULL;
-              break;
-  #endif            
-            case (U1)ZERO:
-              /* Manual sleep time out */
-              break;          
-          }          
-#endif /* Resources configured */
-		
-          SchTask_s_as_taskList[u1_t_index].wakeReason = (U1)SCH_TASK_WAKEUP_SLEEP_TIMEOUT;
-          u1_t_taskReady = u1_t_index;
-          SchTask_s_as_taskList[u1_t_index].flags &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP | SCH_TASK_RESOURCE_SLEEP_CHECK_MASK));
-        }
-        else
-        {
-          //NOP
-        }
-        
-      }
-      else
-      {
-        //NOP
-      }
-      
-    }  
-    else
-    {
-      u1_t_taskReady = u1_t_index;
-    }  
-
-    /* Check if checked task is higher priority (lower index) than current task */
-    if(u1_t_taskReady < u1_s_taskTCBIndex)
-    {
-      u1_s_taskTCBIndex = u1_t_taskReady;
-    }
-    else
-    {
-      //NOP
-    }    
-  }
-  
-#if (RTOS_CONFIG_BG_TASK == SCH_TRUE)
-  /* Scheduler background task does not take priority over a yielding task */
-  if((u1_s_taskTCBIndex == (u1_s_numTasks - ONE)) && (u1_t_yieldTask != (U1)SCH_YIELD_TASK_NOT_SET))
-  {
-    u1_s_taskTCBIndex = u1_t_yieldTask;
-  }
-#endif
-
-  /* Reset tick flag */
-  u1_s_tickFlg = (U1)SCH_TICK_FLAG_FALSE;
-  
-  if(&SchTask_s_as_taskList[u1_s_taskTCBIndex] == tcb_g_p_currentTaskBlock)
-  {  
-    /* Do nothing, return to current task. */
+    /* No tasks to process. Return immediately. */  
   }
   else
   {
-    /* Set global task pointer to new task control block */
-    tcb_g_p_nextTaskBlock = &SchTask_s_as_taskList[u1_s_taskTCBIndex];
+    node_t_p_check = node_s_p_headOfWaitList;
+    
+    /* Check each node that is not suspended. Suspended tasks always held at end of waiting list */
+    while(node_t_p_check != (ListNode*)NULL)
+    {
+      tcb_t_p_currentTCB = node_t_p_check->TCB;
+      
+      if(tcb_t_p_currentTCB->flags & (U1)SCH_TASK_FLAG_STS_SUSPENDED)
+      {
+        /* All waiting tasks have been checked */
+        break;
+      }
+      /* Decrement sleep counter and check if zero */
+      else if((--(tcb_t_p_currentTCB->sleepCntr) == (U1)ZERO))
+      {  
+#if(RTOS_RESOURCES_CONFIGURED)          
+        /* Task has timed out. Determine if due to manual sleep or resource */
+        switch(tcb_t_p_currentTCB->flags & (U1)SCH_TASK_RESOURCE_SLEEP_CHECK_MASK)
+        {
+          /* Remove task from resource's blocked list */
+  #if(RTOS_CFG_OS_MAILBOX_ENABLED == RTOS_CONFIG_TRUE)
+          case (U1)SCH_TASK_FLAG_SLEEP_MBOX:
+            vd_mbox_blockedTaskTimeout((Mbox*)tcb_t_p_currentTCB->resource);
+            tcb_t_p_currentTCB->resource = (void*)NULL;
+            break;
+  #endif          
+  #if(RTOS_CFG_OS_QUEUE_ENABLED == RTOS_CONFIG_TRUE)            
+          case (U1)SCH_TASK_FLAG_SLEEP_QUEUE:
+            vd_queue_blockedTaskTimeout((Queue*)tcb_t_p_currentTCB->resource, tcb_t_p_currentTCB->taskInfo.taskID);
+            tcb_t_p_currentTCB->resource = (void*)NULL;
+            break;
+  #endif   
+  #if(RTOS_CFG_OS_SEMAPHORE_ENABLED == RTOS_CONFIG_TRUE)            
+          case (U1)SCH_TASK_FLAG_SLEEP_SEMA:
+            vd_sema_blockedTimeout((Semaphore*)tcb_t_p_currentTCB->resource, tcb_t_p_currentTCB->taskInfo.taskID);
+            tcb_t_p_currentTCB->resource = (void*)NULL;
+            break;
+  #endif         
+  #if(RTOS_CFG_OS_FLAGS_ENABLED == RTOS_CONFIG_TRUE)            
+          case (U1)SCH_TASK_FLAG_SLEEP_FLAGS:
+            vd_flags_pendTimeout(tcb_t_p_currentTCB->resource);
+            tcb_t_p_currentTCB->resource = (void*)NULL;
+            break;
+  #endif            
+          case (U1)ZERO:
+            /* Manual sleep time out */
+            break;  
 
-    /* Set bit for pendSV to run when CPU is ready */
-    OS_CPU_TRIGGER_DISPATCHER();
-  }
+          default:
+            OSTaskFault(); /* If code execution reaches this point it is a bug */
+            break;             
+        }          
+#endif /* Resources configured */
+        
+        /* Update flags and wake reason to TIMEOUT */
+        tcb_t_p_currentTCB->wakeReason = (U1)SCH_TASK_WAKEUP_SLEEP_TIMEOUT;
+        tcb_t_p_currentTCB->flags     &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP | SCH_TASK_RESOURCE_SLEEP_CHECK_MASK));
+            
+        /* Remove from waiting list and add to ready queue by priority. */
+        vd_list_removeNode(node_t_p_check);
+        vd_list_addTaskByPrio(&node_s_p_headOfReadyList, node_t_p_check);      
+      }
+      
+      /* Move to next node in wait list */
+      node_t_p_check = node_t_p_check->nextNode;    
+    }
+    
+    /* Is first task in ready queue the same as before tick? */
+    if(node_s_p_headOfReadyList->TCB == tcb_g_p_currentTaskBlock)
+    {  
+      /* Do nothing, return to current task. */
+    }
+    else
+    {
+      /* Set global task pointer to new task control block */
+      tcb_g_p_nextTaskBlock = node_s_p_headOfReadyList->TCB;
+
+      /* Set bit for pendSV to run when CPU is ready */
+      OS_CPU_TRIGGER_DISPATCHER();
+    }
+  } /* node_s_p_headOfWaitList == NULL */
 }
 
 /*************************************************************************/
@@ -674,10 +774,7 @@ static void vd_sch_background(void)
   U1 u1_t_index;
 
   for(;;)
-
-  {    
-    /* pre-sleep hook function goes here */
-    
+  {     
 #if(RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT == RTOS_CONFIG_TRUE)
     for(u1_t_index = ZERO; u1_t_index < u1_s_numTasks; u1_t_index++)
     {
@@ -693,6 +790,11 @@ static void vd_sch_background(void)
 #endif
     
 #if(RTOS_CONFIG_ENABLE_BACKGROUND_IDLE_SLEEP == RTOS_CONFIG_TRUE)
+    u1_s_sleepState = (U1)SCH_CPU_SLEEPING;
+  #if(RTOS_CONFIG_PRESLEEP_FUNC == RTOS_CONFIG_TRUE)
+    /* pre-sleep hook function defined by application */
+    app_OSPreSleepFcn();
+  #endif
     WaitForInterrupt();
 #endif
   }
@@ -722,13 +824,12 @@ static U1 u1_sch_checkStack(U1 taskIndex)
 /*                                to five tasks according to their period and sequence.        */
 /*                                                                                             */
 /* 0.2                2/12/19     Took timer/interrupt operations and combined into            */
-/*                                timeHandler module. (Has since been migrated into CPU IF.    */
+/*                                timeHandler module. Has since been migrated into CPU IF mod. */
 /*                                                                                             */
 /* 1.0                2/28/19     First implementation of pre-emptive scheduler.               */
 /*                                                                                             */
 /* 1.1                3/2/19      Changes to scheduling algorithm. Priority-based instead of   */
 /*                                time-based, added blocking and yielding APIs for tasks.      */
-/*                                                                                             */
 /*                                                                                             */
 /* 1.2                3/25/19     Resolved scheduler bug in which a lower priority task would  */
 /*                                not have its sleep timer decremented on a SysTick interrupt  */
@@ -748,3 +849,11 @@ static U1 u1_sch_checkStack(U1 taskIndex)
 /*                                set frequencies.                                             */
 /*                                                                                             */
 /* 1.7                6/22/19     Added API to get CPU load during runtime.                    */
+/*                                                                                             */
+/* 1.8                7/13/19     Added hook functions for pre-sleep, post-sleep.              */
+/*                                                                                             */
+/* 2.0                7/20/19     Redesigned scheduler from array-based with static priorities */
+/*                                to using linked-lists and dynamic priorities (user can change*/
+/*                                during runtime). Uses ready queue, waiting list, and an array*/
+/*                                to map task ID (priority) used in APIs --> linked list node. */
+/*                                                                                             */
