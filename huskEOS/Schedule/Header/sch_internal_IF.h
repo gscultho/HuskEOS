@@ -16,7 +16,7 @@
 #define SCH_MAX_NUM_TASKS                   (RTOS_CONFIG_MAX_NUM_TASKS + ONE)  
 #define SCH_TASK_SLEEP_RESOURCE_MBOX        (SCH_TASK_WAKEUP_MBOX_READY)
 #define SCH_TASK_SLEEP_RESOURCE_QUEUE       (SCH_TASK_WAKEUP_QUEUE_READY)
-#define SCH_TASK_SLEEP_RESOURCE_SEMA        (SCH_TASK_WAKEUP_SEMA_READY)      //how are these defined? just use the ones in sch.h
+#define SCH_TASK_SLEEP_RESOURCE_SEMA        (SCH_TASK_WAKEUP_SEMA_READY)      
 #define SCH_TASK_SLEEP_RESOURCE_FLAGS       (SCH_TASK_WAKEUP_FLAGS_EVENT)
   
 
@@ -25,7 +25,7 @@
 /*************************************************************************/
 struct ListNode; /* Forward declaration. Defined in "listMgr_internal.h" */
 
-typedef struct TaskInfo //probs not needed
+typedef struct TaskInfo //probably not needed
 {
   U1 priority;
   U1 taskID;
