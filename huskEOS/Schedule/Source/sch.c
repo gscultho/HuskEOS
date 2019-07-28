@@ -85,11 +85,6 @@ extern void OSTaskFault(void);
 #define SCH_INVALID_TASK_ID                      (0xFF)
 #define SCH_BG_TASK_ID                           (0x00)
 
-/*************************************************************************/
-/*  Global Variables, Constants                                          */
-/*************************************************************************/
-/* Used for internal modules to quickly get pointer to task node from task ID */
-ListNode* Node_s_ap_mapTaskIDToTCB[SCH_MAX_NUM_TASKS];
 
 /*************************************************************************/
 /*  Static Global Variables, Constants                                   */
@@ -106,7 +101,8 @@ static OS_STACK u4_backgroundStack[SCH_BG_TASK_STACK_SIZE];
 
 /* Allocate memory for data structures used for TCBs and scheduling queues */
 static ListNode   Node_s_as_listAllTasks[SCH_MAX_NUM_TASKS];     
-static Sch_Task   SchTask_s_as_taskList[SCH_MAX_NUM_TASKS];   
+static Sch_Task   SchTask_s_as_taskList[SCH_MAX_NUM_TASKS];
+static ListNode*  Node_s_ap_mapTaskIDToTCB[SCH_MAX_NUM_TASKS];
 
 #if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
 static OS_RunTimeStats OS_s_cpuData;
@@ -247,8 +243,9 @@ U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack, U1 pr
 #endif /* RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT */     
     SchTask_s_as_taskList[u1_s_numTasks].stackPtr    =  sp_cpu_taskStackInit(newTaskFcn, (OS_STACK*)sp);
     
-    /* Set new task priority */
+    /* Set new task priority, ID */
     SchTask_s_as_taskList[u1_s_numTasks].taskInfo.priority = priority;
+    SchTask_s_as_taskList[u1_s_numTasks].taskInfo.taskID   = taskID;
     
     /* Set new linked list node content to newly formed TCB */
     Node_s_as_listAllTasks[u1_s_numTasks].TCB = &SchTask_s_as_taskList[u1_s_numTasks];
@@ -335,16 +332,15 @@ U4 u4_OSsch_getCurrentTickPeriodMs(void)
 U1 u1_OSsch_getReasonForWakeup(void)
 {
   U1 u1_t_reason;
-  U1 u1_t_intMask;
   
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
-  u1_t_intMask = u1_OSsch_maskInterrupts();
+  OS_CPU_ENTER_CRITICAL();
   
   u1_t_reason = tcb_g_p_currentTaskBlock->wakeReason;
   tcb_g_p_currentTaskBlock->wakeReason = (U1)SCH_TASK_NO_WAKEUP_SINCE_LAST_CHECK;
   
   /* Resume tick interrupts and enable context switch interrupt. */
-  vd_OSsch_unmaskInterrupts(u1_t_intMask);
+  OS_CPU_EXIT_CRITICAL();
   
   return(u1_t_reason);
 }
@@ -431,9 +427,7 @@ void vd_OSsch_setNewTickPeriod(U4 numMsReload)
 /*************************************************************************/
 void vd_sch_setReasonForWakeup(U1 reason, Sch_Task* wakeupTaskTCB)
 {
-  U1 u1_t_intMask;
-  
-  u1_t_intMask = u1_OSsch_maskInterrupts();
+  OS_CPU_ENTER_CRITICAL();
   
   wakeupTaskTCB->resource   = (void*)NULL;
   wakeupTaskTCB->flags     &= ~((U1)reason);
@@ -441,7 +435,7 @@ void vd_sch_setReasonForWakeup(U1 reason, Sch_Task* wakeupTaskTCB)
   
   vd_OSsch_taskWake(wakeupTaskTCB->taskInfo.taskID);
   
-  vd_OSsch_unmaskInterrupts(u1_t_intMask);
+  OS_CPU_EXIT_CRITICAL();
 }
 
 /*************************************************************************/
@@ -453,16 +447,14 @@ void vd_sch_setReasonForWakeup(U1 reason, Sch_Task* wakeupTaskTCB)
 /*************************************************************************/
 void vd_sch_setReasonForSleep(void* taskSleepResource, U1 resourceType)
 {
-  U1 u1_t_intMask;
-  
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
-  u1_t_intMask = u1_OSsch_maskInterrupts();
+  OS_CPU_ENTER_CRITICAL();
   
   tcb_g_p_currentTaskBlock->resource = taskSleepResource;
   tcb_g_p_currentTaskBlock->flags   |= (U1)resourceType;
   
   /* Resume tick interrupts and enable context switch interrupt. */
-  vd_OSsch_unmaskInterrupts(u1_t_intMask);
+  OS_CPU_EXIT_CRITICAL();
 }
 
 /*************************************************************************/
@@ -474,11 +466,10 @@ void vd_sch_setReasonForSleep(void* taskSleepResource, U1 resourceType)
 /*************************************************************************/
 void vd_OSsch_taskSleep(U4 period)
 {
-  U1             u1_t_intMask;
 
   //GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
-  u1_t_intMask = u1_OSsch_maskInterrupts();
+  OS_CPU_ENTER_CRITICAL();
   
   tcb_g_p_currentTaskBlock->sleepCntr = period; 
   tcb_g_p_currentTaskBlock->flags    |= (U1)SCH_TASK_FLAG_STS_SLEEP;
@@ -488,7 +479,7 @@ void vd_OSsch_taskSleep(U4 period)
   OS_CPU_TRIGGER_DISPATCHER();
   //GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
   /* Resume tick interrupts and enable context switch interrupt. */
-  vd_OSsch_unmaskInterrupts(u1_t_intMask);
+  OS_CPU_EXIT_CRITICAL();
 }
 
 /*************************************************************************/
@@ -502,10 +493,8 @@ void vd_OSsch_taskSleep(U4 period)
 /*************************************************************************/
 U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime)
 {
-  U1 u1_t_intMask; 
-
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
-  u1_t_intMask = u1_OSsch_maskInterrupts();
+  OS_CPU_ENTER_CRITICAL();
 
   tcb_g_p_currentTaskBlock->sleepCntr = nextWakeTime - u4_s_tickCntr; 
   tcb_g_p_currentTaskBlock->flags    |= (U1)SCH_TASK_FLAG_STS_SLEEP;
@@ -515,7 +504,7 @@ U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime)
   OS_CPU_TRIGGER_DISPATCHER();
   
   /* Resume tick interrupts and enable context switch interrupt. */
-  vd_OSsch_unmaskInterrupts(u1_t_intMask);
+  OS_CPU_EXIT_CRITICAL();
 
   return(u4_s_tickCntr);  
 }
@@ -528,13 +517,11 @@ U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime)
 /*  Return:        N/A                                                   */
 /*************************************************************************/
 void vd_OSsch_taskWake(U1 taskIndex)
-{
-  U1 u1_t_intMask;
-  
-  u1_t_intMask = u1_OSsch_maskInterrupts();
+{  
+  OS_CPU_ENTER_CRITICAL();
   
   Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB->sleepCntr  =   (U4)ZERO; 
-  Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB->sleepCntr &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP|SCH_TASK_FLAG_STS_SUSPENDED));
+  Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB->flags     &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP|SCH_TASK_FLAG_STS_SUSPENDED));
   
 #if(RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE && RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
   if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[u1_s_numTasks - ONE].TCBNode->TCB))
@@ -542,6 +529,9 @@ void vd_OSsch_taskWake(U1 taskIndex)
     OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += (u1_cpu_getPercentOfTick() - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
   }
 #endif
+  
+  /* Remove task from wait list */
+  vd_list_removeNode(&node_s_p_headOfWaitList, Node_s_ap_mapTaskIDToTCB[taskIndex]); 
   
   /* Add woken task to ready queue */
   vd_list_addTaskByPrio(&node_s_p_headOfReadyList, Node_s_ap_mapTaskIDToTCB[taskIndex]);
@@ -555,7 +545,7 @@ void vd_OSsch_taskWake(U1 taskIndex)
     OS_CPU_TRIGGER_DISPATCHER();
   }
   
-  vd_OSsch_unmaskInterrupts(u1_t_intMask);
+  OS_CPU_EXIT_CRITICAL();
 }
 
 /*************************************************************************/
@@ -567,16 +557,16 @@ void vd_OSsch_taskWake(U1 taskIndex)
 /*************************************************************************/
 void vd_OSsch_taskSuspend(U1 taskIndex)
 {
-  U1             u1_t_intMask;
   ListNode* node_t_p_suspendTask;
   
-  u1_t_intMask         = u1_OSsch_maskInterrupts();
+  OS_CPU_ENTER_CRITICAL();
+  
   node_t_p_suspendTask = Node_s_ap_mapTaskIDToTCB[taskIndex];
   
   if(Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB->flags != (U1)SCH_TASK_FLAG_STS_SUSPENDED)
   {
     Node_s_ap_mapTaskIDToTCB[taskIndex]->TCB->flags |= (U1)SCH_TASK_FLAG_STS_SUSPENDED;
-    vd_list_removeNode(node_t_p_suspendTask); 
+    vd_list_removeNode(&node_s_p_headOfWaitList, node_t_p_suspendTask); 
     vd_list_addNodeToEnd(&node_s_p_headOfWaitList, node_t_p_suspendTask);   //need to pass by reference not pointer 
   }
 
@@ -588,7 +578,7 @@ void vd_OSsch_taskSuspend(U1 taskIndex)
     OS_CPU_TRIGGER_DISPATCHER();
   }
   /* Resume tick interrupts and enable context switch interrupt. */
-  vd_OSsch_unmaskInterrupts(u1_t_intMask);
+  OS_CPU_ENTER_CRITICAL();
 }
 
 /*************************************************************************/
@@ -610,11 +600,9 @@ void vd_OSsch_suspendScheduler(void)
 /*************************************************************************/
 __irq void SysTick_Handler(void)
 {
-  U1 u1_t_intMask;
-  
-  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
+  //GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
-  u1_t_intMask = u1_OSsch_maskInterrupts();
+  OS_CPU_ENTER_CRITICAL();
 
   ++u4_s_tickCntr;
   
@@ -638,9 +626,9 @@ __irq void SysTick_Handler(void)
 #endif  
   
   vd_sch_periodicScheduler();
-  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
+ // GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
   /* Resume tick interrupts and enable context switch interrupt. */
-  vd_OSsch_unmaskInterrupts(u1_t_intMask);
+  OS_CPU_EXIT_CRITICAL();
 }
 
 /*************************************************************************/
@@ -671,7 +659,8 @@ static void vd_sch_setNextReadyTaskToRun(void)
 static void vd_sch_periodicScheduler(void)
 {
   ListNode* node_t_p_check;
-  Sch_Task*      tcb_t_p_currentTCB;
+  ListNode* node_t_p_changeListNode;
+  Sch_Task* tcb_t_p_currentTCB;
   
   if(node_s_p_headOfWaitList == NULL)
   {
@@ -713,7 +702,7 @@ static void vd_sch_periodicScheduler(void)
   #endif   
   #if(RTOS_CFG_OS_SEMAPHORE_ENABLED == RTOS_CONFIG_TRUE)            
           case (U1)SCH_TASK_FLAG_SLEEP_SEMA:
-            vd_sema_blockedTimeout((Semaphore*)tcb_t_p_currentTCB->resource, tcb_t_p_currentTCB->taskInfo.taskID);
+            vd_sema_blockedTimeout((Semaphore*)tcb_t_p_currentTCB->resource, tcb_t_p_currentTCB);
             tcb_t_p_currentTCB->resource = (void*)NULL;
             break;
   #endif         
@@ -737,13 +726,21 @@ static void vd_sch_periodicScheduler(void)
         tcb_t_p_currentTCB->wakeReason = (U1)SCH_TASK_WAKEUP_SLEEP_TIMEOUT;
         tcb_t_p_currentTCB->flags     &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP | SCH_TASK_RESOURCE_SLEEP_CHECK_MASK));
             
+        /* Save node to be moved to ready list */
+        node_t_p_changeListNode = node_t_p_check;
+        
+        /* Move to next node in wait list */
+        node_t_p_check = node_t_p_check->nextNode;
+        
         /* Remove from waiting list and add to ready queue by priority. */
-        vd_list_removeNode(node_t_p_check);
-        vd_list_addTaskByPrio(&node_s_p_headOfReadyList, node_t_p_check);      
+        vd_list_removeNode(&node_s_p_headOfWaitList, node_t_p_changeListNode);
+        vd_list_addTaskByPrio(&node_s_p_headOfReadyList, node_t_p_changeListNode);      
       }
-      
-      /* Move to next node in wait list */
-      node_t_p_check = node_t_p_check->nextNode;    
+      else
+      {      
+        /* Move to next node in wait list */
+        node_t_p_check = node_t_p_check->nextNode;
+      }        
     }
     
     /* Is first task in ready queue the same as before tick? */
