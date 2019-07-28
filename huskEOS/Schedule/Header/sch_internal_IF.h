@@ -62,10 +62,6 @@ typedef struct
 OS_RunTimeStats;
 #endif
 
-/*************************************************************************/
-/*  External References                                                  */
-/*************************************************************************/  
-extern struct ListNode* Node_s_ap_mapTaskIDToTCB[SCH_MAX_NUM_TASKS];
 
 /*************************************************************************/
 /*  Public Functions                                                     */
