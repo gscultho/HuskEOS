@@ -183,6 +183,8 @@ U1 u1_OSsema_post(struct Semaphore* semaphore)
 /*  Purpose:       API for scheduler to call when sleeping task times out*/
 /*  Arguments:     Semaphore* semaphore:                                 */
 /*                     Pointer to semaphore.                             */
+/*                 Sch_Task* taskTCB:                                    */
+/*                     Pointer to TCB of blocked task.                   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
 void vd_sema_blockedTimeout(struct Semaphore* semaphore, struct Sch_Task* taskTCB)
