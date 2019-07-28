@@ -51,7 +51,7 @@
 /*************************************************************************/
 /*  Function Name: vd_list_addNodeToEnd                                  */
 /*  Purpose:       Add new node to end of specified linked list.         */
-/*  Arguments:     ListNode* listHead, newNode:                          */
+/*  Arguments:     ListNode** listHead, newNode:                         */
 /*                     Pointers to head node and new node.               */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
@@ -99,11 +99,11 @@ void vd_list_swapNodes(struct ListNode* firstNode, struct ListNode* secondNode)
 }
 
 /*************************************************************************/
-/*  Function Name: vd_list_addNodeAfter                                 */
-/*  Purpose:                                     */
-/*  Arguments:     ListNode* placeNode:                            */
+/*  Function Name: vd_list_addNodeAfter                                  */
+/*  Purpose:       Add node in list after specified node.                */
+/*  Arguments:     ListNode* placeNode:                                  */
 /*                     Node that new node will be inserted after.        */
-/*                 ListNode* nodeToAdd:                            */
+/*                 ListNode* nodeToAdd:                                  */
 /*                     New node to be added.                             */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
@@ -121,7 +121,7 @@ void vd_list_addNodeAfter(struct ListNode* placeNode, struct ListNode* nodeToAdd
 /*************************************************************************/
 /*  Function Name: vd_list_addTaskByPrio                                 */
 /*  Purpose:       Add task to a queue by order of priority.             */
-/*  Arguments:     ListNode* listHead, newNode:                          */
+/*  Arguments:     ListNode** listHead, newNode:                         */
 /*                     Pointers to head node and new node.               */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
@@ -177,7 +177,7 @@ void vd_list_addTaskByPrio(struct ListNode** listHead, struct ListNode* newNode)
 /*************************************************************************/
 /*  Function Name: vd_list_addNodeToFront                                */
 /*  Purpose:       Add node to front of linked list.                     */
-/*  Arguments:     ListNode* listHead, newNode:                          */
+/*  Arguments:     ListNode** listHead, newNode:                         */
 /*                     Pointers to head node and new node.               */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
@@ -208,11 +208,13 @@ void vd_list_addNodeToFront(struct ListNode** listHead, struct ListNode* newNode
 /*************************************************************************/
 /*  Function Name: vd_list_removeNode                                    */
 /*  Purpose:       Remove a node from linked list.                       */
-/*  Arguments:     ListNode* removeNode:                                 */
+/*  Arguments:     ListNode** listHead:                                  */
+/*                     Pointer to head node.                             */
+/*                 ListNode* removeNode:                                 */
 /*                     Pointer to node to remove.                        */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_list_removeNode(struct ListNode* removeNode)
+void vd_list_removeNode(struct ListNode** listHead, struct ListNode* removeNode)
 {
   /* Change links */
   if(removeNode->previousNode != LIST_NULL_PTR)
@@ -224,6 +226,19 @@ void vd_list_removeNode(struct ListNode* removeNode)
     removeNode->nextNode->previousNode = removeNode->previousNode;
   }
   
+  /* Special case if head was pointing to this node */
+  if(*listHead == removeNode)
+  {
+    if((*listHead)->nextNode != LIST_NULL_PTR)
+    {
+      *listHead = (*listHead)->nextNode;
+    }
+    else
+    {
+      *listHead = LIST_NULL_PTR; 
+    }
+  }
+  
   /* Reset node pointers */
   removeNode->nextNode     = LIST_NULL_PTR;
   removeNode->previousNode = LIST_NULL_PTR;
@@ -231,8 +246,8 @@ void vd_list_removeNode(struct ListNode* removeNode)
 
 /*************************************************************************/
 /*  Function Name: node_list_removeFirstNode                             */
-/*  Purpose:       Remove a node from linked list.                       */
-/*  Arguments:     ListNode* listHead:                                   */
+/*  Purpose:       Remove first node from linked list.                   */
+/*  Arguments:     ListNode** listHead:                                  */
 /*                     Pointer to head node.                             */
 /*  Return:        ListNode*:                                            */
 /*                     Pointer to removed node.                          */
@@ -252,8 +267,11 @@ ListNode* node_list_removeFirstNode(struct ListNode** listHead)
     /* Move to new head of list */
     node_t_tempPtr = (*listHead)->nextNode;
   
-    node_t_tempPtr->previousNode = LIST_NULL_PTR;
-  
+    if(node_t_tempPtr != LIST_NULL_PTR)
+    {
+      node_t_tempPtr->previousNode = LIST_NULL_PTR;
+    }
+    
     /* Set new head pointer */
     *listHead = node_t_tempPtr;
     
@@ -263,6 +281,34 @@ ListNode* node_list_removeFirstNode(struct ListNode** listHead)
   }
   
   return (node_t_deletedNodePtr);
+}
+
+/*************************************************************************/
+/*  Function Name: node_list_removeNodeByTCB                             */
+/*  Purpose:       Remove node from linked list that holds specified TCB.*/
+/*  Arguments:     ListNode** listHead:                                  */
+/*                     Pointer to head node.                             */
+/*  Return:        ListNode*:                                            */
+/*                     Pointer to removed node.                          */
+/*************************************************************************/
+ListNode* node_list_removeNodeByTCB(struct ListNode** listHead, struct Sch_Task* taskTCB)
+{
+  ListNode* node_t_tempPtr;
+  
+  node_t_tempPtr = *listHead;
+  
+  /* Find TCB */
+  while((node_t_tempPtr->TCB != taskTCB) && (node_t_tempPtr != LIST_NULL_PTR))
+  {
+    node_t_tempPtr = node_t_tempPtr->nextNode;
+  }
+  
+  if(node_t_tempPtr != LIST_NULL_PTR)
+  {
+    vd_list_removeNode(listHead, node_t_tempPtr);
+  }     
+  
+  return(node_t_tempPtr);  
 }
 
 
