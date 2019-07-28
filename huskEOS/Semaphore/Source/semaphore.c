@@ -1,6 +1,6 @@
 /*************************************************************************/
 /*  File Name: semaphore.c                                               */
-/*  Purpose: Binary semaphore services for application layer tasks.      */
+/*  Purpose: Semaphore services for application layer tasks.             */
 /*  Created by: Garrett Sculthorpe on 3/24/19.                           */
 /*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
@@ -9,29 +9,31 @@
 /*************************************************************************/
 /*  Includes                                                             */
 /*************************************************************************/
+#include "listMgr_internal.h"
+#include "semaphore_internal_IF.h"
 #include "semaphore.h"
+#include "sch_internal_IF.h"
 #include "sch.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
-#define SEMA_SEMAPHORE_STS_INIT        (1)
 #define SEMA_NO_BLOCK                  (0)
-#define SEMA_NO_BLOCKED_TASK           (0)
-#define SEMA_BLOCKED_TASK_SLOT_OPEN    (1)
-#define SEMA_BLOCKED_TASK_SLOT_CLOSED  (0)
 #define SEMA_BLOCKED_TASK_ID_OFFSET    (1)
+#define SEMA_NULL_PTR                  ((void*)0)
+#define SEMA_NO_BLOCKED_TASKS          (0)
+#define SEMA_NUM_SEMAPHORES            (RTOS_CFG_NUM_SEMAPHORES)
 
 /*************************************************************************/
-/*  Global Variables, Constants                                          */
+/*  Static Global Variables, Constants                                   */
 /*************************************************************************/
-
+static Semaphore sema_s_semaList[SEMA_NUM_SEMAPHORES];
 
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
 /*************************************************************************/
 static void vd_sema_blockTask(Semaphore* semaphore);
-static void vd_sema_unblockTasks(Semaphore* semaphore);
+static void vd_sema_unblockTask(Semaphore* semaphore);
 
 
 /*************************************************************************/
@@ -39,19 +41,32 @@ static void vd_sema_unblockTasks(Semaphore* semaphore);
 /*************************************************************************/
 /*  Function Name: vd_OSsema_init                                        */
 /*  Purpose:       Initialize specified semaphore.                       */
-/*  Arguments:     N/A                                                   */
+/*  Arguments:     Semaphore** semaphore:                                */
+/*                            Address of semaphore object.               */
+/*                 S1 initValue:                                         */
+/*                            Initial value for semsphore.               */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_OSsema_init(Semaphore* semaphore)
+void vd_OSsema_init(struct Semaphore** semaphore, S1 initValue)
 {
-  U1 u1_t_index;
+         U1 u1_t_index;
+  static U1 u1_s_numSemaAllocated = ZERO;
   
   OS_SCH_ENTER_CRITICAL();
-  semaphore->sema = (S1)SEMA_SEMAPHORE_STS_INIT;
+  
+  /* Have semaphore pointer point to available object */
+  (*semaphore) = &sema_s_semaList[u1_s_numSemaAllocated];
+  
+  ++u1_s_numSemaAllocated;
+  
+  (*semaphore)->sema            = initValue;
+  (*semaphore)->blockedListHead = SEMA_NULL_PTR;
   
   for(u1_t_index = (U1)ZERO; u1_t_index < (U1)SEMA_MAX_NUM_BLOCKED; u1_t_index++)
   {
-    semaphore->blockedTasks[u1_t_index] = (U1)SEMA_NO_BLOCKED_TASK;
+    (*semaphore)->blockedTasks[u1_t_index].nextNode     = SEMA_NULL_PTR;
+    (*semaphore)->blockedTasks[u1_t_index].previousNode = SEMA_NULL_PTR;
+    (*semaphore)->blockedTasks[u1_t_index].TCB          = SEMA_NULL_PTR;
   }
   
   OS_SCH_EXIT_CRITICAL();
@@ -68,38 +83,51 @@ void vd_OSsema_init(Semaphore* semaphore)
 /*  Return:        U1 SEMA_SEMAPHORE_TAKEN      OR                       */
 /*                    SEMA_SEMAPHORE_SUCCESS                             */
 /*************************************************************************/
-U1 u1_OSsema_wait(Semaphore* semaphore, U4 blockPeriod)
+U1 u1_OSsema_wait(struct Semaphore* semaphore, U4 blockPeriod)
 {
-  U1 ut_t_returnSts;
+  U1 u1_t_returnSts;
   
-  ut_t_returnSts = (U1)SEMA_SEMAPHORE_TAKEN;
+  u1_t_returnSts = (U1)SEMA_SEMAPHORE_TAKEN;
   
   OS_SCH_ENTER_CRITICAL();
   
   /* Check if available */
   if(!(semaphore->sema))
   {  
+    /* If non-blocking function call, exit critical section and return immediately */
     if(blockPeriod == (U4)SEMA_NO_BLOCK)
     {  
       OS_SCH_EXIT_CRITICAL();
     }
+    /* Else block task */
     else
     {
-      vd_sema_blockTask(semaphore);
-      vd_sch_setReasonForSleep(semaphore, (U1)SCH_TASK_SLEEP_RESOURCE_SEMA);
+      vd_sema_blockTask(semaphore); /* Add task to resource blocked list */
+      vd_sch_setReasonForSleep(semaphore, (U1)SCH_TASK_SLEEP_RESOURCE_SEMA); /* Tell scheduler the reason for task block state */
       OS_SCH_EXIT_CRITICAL();
-      vd_OSsch_taskSleep(blockPeriod);
+      vd_OSsch_taskSleep(blockPeriod); /* Set sleep timer and change task state */
+      
+      /* Check again after task wakes up */
+      OS_SCH_ENTER_CRITICAL();
+      
+      if(semaphore->sema) /* If available */
+      {
+        --(semaphore->sema);
+        u1_t_returnSts = (U1)SEMA_SEMAPHORE_SUCCESS;        
+      }
+      
+      OS_SCH_EXIT_CRITICAL();
     }
   }
-  else
+  else /* Semaphore is available */
   {  
     --(semaphore->sema);
     OS_SCH_EXIT_CRITICAL();
     
-    ut_t_returnSts = (U1)SEMA_SEMAPHORE_SUCCESS;
+    u1_t_returnSts = (U1)SEMA_SEMAPHORE_SUCCESS;
   }
   
-  return (ut_t_returnSts);
+  return (u1_t_returnSts);
 }
 
 /*************************************************************************/
@@ -110,7 +138,7 @@ U1 u1_OSsema_wait(Semaphore* semaphore, U4 blockPeriod)
 /*  Return:        U1 SEMA_SEMAPHORE_TAKEN     OR                        */
 /*                    SEMA_SEMAPHORE_SUCCESS                             */
 /*************************************************************************/
-U1 u1_OSsema_check(Semaphore* semaphore)
+U1 u1_OSsema_check(struct Semaphore* semaphore)
 {
   U1 u1_t_sts;
   
@@ -139,12 +167,12 @@ U1 u1_OSsema_check(Semaphore* semaphore)
 /*                     Pointer to semaphore.                             */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-U1 u1_OSsema_post(Semaphore* semaphore)
+U1 u1_OSsema_post(struct Semaphore* semaphore)
 {
   OS_SCH_ENTER_CRITICAL();
   
   ++(semaphore->sema);
-  vd_sema_unblockTasks(semaphore);
+  vd_sema_unblockTask(semaphore);
   OS_SCH_EXIT_CRITICAL();
   
   return ((U1)SEMA_SEMAPHORE_SUCCESS);
@@ -157,23 +185,15 @@ U1 u1_OSsema_post(Semaphore* semaphore)
 /*                     Pointer to semaphore.                             */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_sema_blockedTimeout(Semaphore* semaphore, U1 taskID)
+void vd_sema_blockedTimeout(struct Semaphore* semaphore, struct Sch_Task* taskTCB)
 {
-  U1 u1_t_index;
-  U1 u1_t_storedTask;
+  ListNode* node_t_tempPtr;
   
   OS_SCH_ENTER_CRITICAL();
   
-  u1_t_storedTask = taskID + (U1)SEMA_BLOCKED_TASK_ID_OFFSET;
-  
-  for(u1_t_index = (U1)ZERO; u1_t_index < (U1)SEMA_MAX_NUM_BLOCKED; ++u1_t_index)
-  {
-    if((semaphore->blockedTasks[u1_t_index]) == u1_t_storedTask)
-    {
-      semaphore->blockedTasks[u1_t_index] = (U1)SEMA_NO_BLOCKED_TASK;
-      break;
-    }
-  }
+  /* Remove node from block list and clear its contents */
+  node_t_tempPtr      = node_list_removeNodeByTCB(&(semaphore->blockedListHead), taskTCB);
+  node_t_tempPtr->TCB = SEMA_NULL_PTR;
   
   OS_SCH_EXIT_CRITICAL();
 }
@@ -185,50 +205,47 @@ void vd_sema_blockedTimeout(Semaphore* semaphore, U1 taskID)
 /*                     Pointer to semaphore.                             */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-static void vd_sema_blockTask(Semaphore* semaphore)
+static void vd_sema_blockTask(struct Semaphore* semaphore)
 {
   U1 u1_t_index;
-  U1 u1_t_slotFlag;
   
-  u1_t_index    = (U1)ZERO;
-  u1_t_slotFlag = (U1)SEMA_BLOCKED_TASK_SLOT_OPEN;
+  u1_t_index = (U1)ZERO;
   
-  /* Find open slot on list */
-  while((semaphore->blockedTasks[u1_t_index])) 
+  /* Find available node to store data */
+  while((semaphore->blockedTasks[u1_t_index].TCB != SEMA_NULL_PTR) && (u1_t_index < (U1)SEMA_MAX_NUM_BLOCKED)) 
   {    
-    if(u1_t_index == (U1)SEMA_MAX_NUM_BLOCKED)
-    {
-      u1_t_slotFlag = (U1)SEMA_BLOCKED_TASK_SLOT_CLOSED;
-      break;
-    }
     ++u1_t_index;
   }
-  
-  if(u1_t_slotFlag == (U1)SEMA_BLOCKED_TASK_SLOT_OPEN)
+  /* If node found, then store TCB pointer and add to blocked list */
+  if(u1_t_index < (U1)SEMA_MAX_NUM_BLOCKED)
   {
-    (semaphore->blockedTasks[u1_t_index]) = (u1_OSsch_getCurrentTask() + (U1)SEMA_BLOCKED_TASK_ID_OFFSET);
+    (semaphore->blockedTasks[u1_t_index].TCB) = tcb_OSsch_getCurrentTCB();
+    vd_list_addTaskByPrio(&(semaphore->blockedListHead), &(semaphore->blockedTasks[u1_t_index]));
   }
 }
 
 /*************************************************************************/
 /*  Function Name: vd_sema_unblockTasks                                  */
-/*  Purpose:       Wake up tasks blocked on semaphore. Called in         */
-/*                 critical section.                                     */
+/*  Purpose:       Wake up tasks blocked on semaphore.                   */
 /*  Arguments:     Semaphore* semaphore:                                 */
 /*                     Pointer to semaphore.                             */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-static void vd_sema_unblockTasks(Semaphore* semaphore)
+static void vd_sema_unblockTask(struct Semaphore* semaphore)
 {
-  U1 u1_t_index;
+  ListNode* node_t_p_highPrioTask;
   
-  for(u1_t_index = (U1)ZERO; u1_t_index < (U1)SEMA_MAX_NUM_BLOCKED; ++u1_t_index)
-  {    
-    if(semaphore->blockedTasks[u1_t_index] != (U1)SEMA_NO_BLOCKED_TASK)
-    {                                                                                                  /* compensate for offset by 1 */
-      vd_sch_setReasonForWakeup((U1)SCH_TASK_WAKEUP_SEMA_READY, semaphore->blockedTasks[u1_t_index] - (U1)SEMA_BLOCKED_TASK_ID_OFFSET);
-      semaphore->blockedTasks[u1_t_index] = (U1)SEMA_NO_BLOCKED_TASK;
-    }
+  /* If blocked list is not empty */
+  if(semaphore->blockedListHead != SEMA_NULL_PTR)
+  { 
+    /* Remove highest priority task */    
+    node_t_p_highPrioTask = node_list_removeFirstNode(&(semaphore->blockedListHead));
+    
+    /* Notify scheduler to change state. If woken task is higher priority than running task, context switch will occur after critical section. */    
+    vd_sch_setReasonForWakeup((U1)SCH_TASK_WAKEUP_SEMA_READY, node_t_p_highPrioTask->TCB);
+    
+    /* Clear TCB pointer. This frees this node for future use. */
+    node_t_p_highPrioTask->TCB = SEMA_NULL_PTR;   
   }
 }
 
@@ -240,4 +257,6 @@ static void vd_sema_unblockTasks(Semaphore* semaphore)
 /* 0.1                3/24/19     Module implemented                                           */
 /*                                                                                             */
 /* 0.2                5/24/19     Added API for scheduler to use when blocked task times out.  */
+/*                                                                                             */
+/* 0.3                7/26/19     Block list structure changed to utilize list module.         */
 /*                                                                                             */
