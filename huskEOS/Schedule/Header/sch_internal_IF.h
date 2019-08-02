@@ -17,25 +17,18 @@
 #define SCH_TASK_SLEEP_RESOURCE_MBOX        (SCH_TASK_WAKEUP_MBOX_READY)
 #define SCH_TASK_SLEEP_RESOURCE_QUEUE       (SCH_TASK_WAKEUP_QUEUE_READY)
 #define SCH_TASK_SLEEP_RESOURCE_SEMA        (SCH_TASK_WAKEUP_SEMA_READY)      
-#define SCH_TASK_SLEEP_RESOURCE_FLAGS       (SCH_TASK_WAKEUP_FLAGS_EVENT)
-  
+#define SCH_TASK_SLEEP_RESOURCE_FLAGS       (SCH_TASK_WAKEUP_FLAGS_CLEARED)
 
 /*************************************************************************/
 /*  Data Types                                                           */
 /*************************************************************************/
 struct ListNode; /* Forward declaration. Defined in "listMgr_internal.h" */
 
-typedef struct TaskInfo //probably not needed
-{
-  U1 priority;
-  U1 taskID;
-}
-TaskInfo;
-
 typedef struct Sch_Task
 {
   OS_STACK*  stackPtr; /* Task stack pointer must be first entry in struct. */
-  TaskInfo   taskInfo;
+  U1         priority;
+  U1         taskID;
   U1         flags;
   U4         sleepCntr;
   void*      resource;
@@ -47,7 +40,7 @@ typedef struct Sch_Task
 Sch_Task;
 
 #if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
-typedef struct
+typedef struct CPU_IdleCalc
 {
   U1 CPU_idleAvg;
   U4 CPU_idleRunning;
@@ -55,7 +48,7 @@ typedef struct
 }
 CPU_IdleCalc;
 
-typedef struct
+typedef struct OS_RunTimeStats
 {
   CPU_IdleCalc  CPUIdlePercent;
 }
@@ -67,7 +60,7 @@ OS_RunTimeStats;
 /*  Public Functions                                                     */
 /*************************************************************************/
 /*************************************************************************/
-/*  Function Name: vd_sch_setReasonForWakeup                             */
+/*  Function Name: vd_OSsch_setReasonForWakeup                           */
 /*  Purpose:       Set reason for wakeup to resource available. Called   */
 /*                 internal to RTOS by other RTOS modules.               */
 /*  Arguments:     U1 reason:                                            */
@@ -77,16 +70,16 @@ OS_RunTimeStats;
 /*                    was stored on resource blocked list.               */
 /*  Return:        void                                                  */
 /*************************************************************************/
-void vd_sch_setReasonForWakeup(U1 reason, Sch_Task* wakeupTaskTCB);
+void vd_OSsch_setReasonForWakeup(U1 reason, Sch_Task* wakeupTaskTCB);
 
 /*************************************************************************/
-/*  Function Name: vd_sch_setReasonForSleep                              */
+/*  Function Name: vd_OSsch_setReasonForSleep                            */
 /*  Purpose:       Set reason for task sleep according to mask.          */
 /*  Arguments:     void* taskSleepResource:                              */
 /*                       Address of resource task is blocked on.         */
 /*  Return:        void                                                  */
 /*************************************************************************/
-void vd_sch_setReasonForSleep(void* taskSleepResource, U1 resourceType);
+void vd_OSsch_setReasonForSleep(void* taskSleepResource, U1 resourceType);
 
 /*************************************************************************/
 /*  Function Name: tcb_OSsch_getCurrentTCB                               */
@@ -94,11 +87,14 @@ void vd_sch_setReasonForSleep(void* taskSleepResource, U1 resourceType);
 /*  Arguments:     N/A                                                   */
 /*  Return:        Sch_Task*: Current TCB address.                       */
 /*************************************************************************/
-Sch_Task* tcb_OSsch_getCurrentTCB(void);
+//Sch_Task* tcb_OSsch_getCurrentTCB(void);
 
 /*************************************************************************/
 /*  Global Variables                                                     */
 /*************************************************************************/
-
+extern Sch_Task* tcb_g_p_currentTaskBlock; /* Lets internal modules quickly dereference current task data. Should be used as read-only. */
+ 
+#define SCH_CURRENT_TCB_ADDR                (tcb_g_p_currentTaskBlock)
+#define SCH_CURRENT_TASK_ID                 ((U1)(tcb_g_p_currentTaskBlock->taskID))
 
 #endif 
