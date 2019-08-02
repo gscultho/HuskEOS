@@ -23,7 +23,7 @@
 #define SCH_TASK_WAKEUP_MBOX_READY               (0x01)
 #define SCH_TASK_WAKEUP_QUEUE_READY              (0x02)
 #define SCH_TASK_WAKEUP_SEMA_READY               (0x03)
-#define SCH_TASK_WAKEUP_FLAGS_EVENT              (0x04)
+#define SCH_TASK_WAKEUP_FLAGS_CLEARED            (0x04)
 
 #define OS_SCH_ENTER_CRITICAL(void)              (OS_CPU_ENTER_CRITICAL(void))
 #define OS_SCH_EXIT_CRITICAL(void)               (OS_CPU_EXIT_CRITICAL(void)) 
@@ -110,7 +110,8 @@ U4 u4_OSsch_getCurrentTickPeriodMs(void);
 /*                 SCH_TASK_WAKEUP_MBOX_READY             OR             */
 /*                 SCH_TASK_WAKEUP_QUEUE_READY            OR             */
 /*                 SCH_TASK_WAKEUP_SEMA_READY             OR             */
-/*                 SCH_TASK_WAKEUP_FLAGS_EVENT                           */
+/*                 SCH_TASK_WAKEUP_FLAGS_CLEARED          OR             */
+/*                 OS flags event that triggered wakeup                  */
 /*************************************************************************/
 U1 u1_OSsch_getReasonForWakeup(void);
 
@@ -136,7 +137,7 @@ U1 u1_OSsch_getCurrentTaskPrio(void);
 /*  Arguments:     N/A                                                   */
 /*  Return:        U1: Current task ID.                                  */
 /*************************************************************************/
-U1 u1_OSsch_getCurrentTaskID(void);
+//U1 u1_OSsch_getCurrentTaskID(void);
 
 /*************************************************************************/
 /*  Function Name: vd_OSsch_setNewTickPeriod                             */
@@ -170,11 +171,11 @@ U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime);
 /*************************************************************************/
 /*  Function Name: vd_OSsch_taskWake                                     */
 /*  Purpose:       Wake specified task from sleep or suspended state.    */
-/*  Arguments:     U1 taskIndex:                                         */
+/*  Arguments:     U1 taskID:                                            */
 /*                    Task ID to be woken from sleep or suspend state.   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_OSsch_taskWake(U1 taskIndex); 
+void vd_OSsch_taskWake(U1 taskID); 
 
 /*************************************************************************/
 /*  Function Name: vd_OSsch_taskSleep                                    */
