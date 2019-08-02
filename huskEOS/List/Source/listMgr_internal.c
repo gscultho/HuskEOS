@@ -137,7 +137,7 @@ void vd_list_addTaskByPrio(struct ListNode** listHead, struct ListNode* newNode)
     *listHead             = newNode;
   }
   /* If new node has higher priority than current highest priority task */
-  else if(newNode->TCB->taskInfo.priority <= (*listHead)->TCB->taskInfo.priority) 
+  else if(newNode->TCB->priority <= (*listHead)->TCB->priority) 
   {
     /* Insert new node as the new head */
     newNode->nextNode         = *listHead;
@@ -152,7 +152,7 @@ void vd_list_addTaskByPrio(struct ListNode** listHead, struct ListNode* newNode)
     node_t_tempPtr = (*listHead);
     
     /* Find insertion point */
-    while(newNode->TCB->taskInfo.priority >= node_t_tempPtr->TCB->taskInfo.priority)
+    while(newNode->TCB->priority >= node_t_tempPtr->TCB->priority)
     {
       node_t_tempPtr = node_t_tempPtr->nextNode;
     }
