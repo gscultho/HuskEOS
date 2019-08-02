@@ -46,7 +46,8 @@ static FlagsObj flags_s_flagsList[RTOS_CFG_NUM_FLAG_OBJECTS];
 /*                        Address of flags object.                       */
 /*                 U1 flagInitValues:                                    */
 /*                        Initial values for flags.                      */
-/*  Return:        N/A                                                   */
+/*  Return:        U1: FLAGS_NO_OBJ_AVAILABLE     OR                     */
+/*                     FLAGS_INIT_SUCCESS                                */
 /*************************************************************************/
 U1 u1_OSflags_init(struct FlagsObj** flags, U1 flagInitValues)
 {
