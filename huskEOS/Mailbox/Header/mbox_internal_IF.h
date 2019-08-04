@@ -5,27 +5,24 @@
 /*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
-#ifndef mbox_internal_IF_h /* Protection from declaring more than once */
+#ifndef mbox_internal_IF_h 
 #define mbox_internal_IF_h
 
 #include "cpu_defs.h"
 #include "rtos_cfg.h"
-#include "semaphore.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
-#define MAIL               RTOS_CFG_MBOX_DATA
 
 
 /*************************************************************************/
 /*  Data Types                                                           */
 /*************************************************************************/
-typedef struct 
+typedef struct Mailbox
 {
-  MAIL      mail;
-  U1        blockedTaskID;   
-  Semaphore mboxSema;
+  MAIL mail;
+  U1   blockedTaskID;   
 }
 Mailbox;
 
@@ -33,13 +30,27 @@ Mailbox;
 /*************************************************************************/
 /*  Public Functions                                                     */
 /*************************************************************************/
-void vd_mbox_init(void);
-void vd_mbox_blockedTaskTimeout(void* mbox);
+/*************************************************************************/
+/*  Function Name: vd_OSmbox_init                                        */
+/*  Purpose:       Initialize mailbox module.                            */
+/*  Arguments:     N/A                                                   */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
+void vd_OSmbox_init(void);
 
+/*************************************************************************/
+/*  Function Name: vd_OSmbox_blockedTaskTimeout                          */
+/*  Purpose:       Remove blocked task from specified mailbox.           */
+/*  Arguments:     void* mbox:                                           */
+/*                     Mailbox address.                                  */
+/*                                                                       */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
+void vd_OSmbox_blockedTaskTimeout(void* mbox);
 
 /*************************************************************************/
 /*  Global Variables                                                     */
 /*************************************************************************/
 
 
-#endif /* End conditional declaration for mbox_internal_IF_h */
+#endif 
