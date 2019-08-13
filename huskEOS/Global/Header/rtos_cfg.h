@@ -33,15 +33,16 @@
 #define RTOS_CONFIG_POSTSLEEP_FUNC                  (RTOS_CONFIG_FALSE)  /* If enabled, hook function app_OSPostSleepFcn() can be defined in application. */
 
 /* Mailbox */
-#define RTOS_CFG_OS_MAILBOX_ENABLED                 (RTOS_CONFIG_FALSE)
+#define RTOS_CFG_OS_MAILBOX_ENABLED                 (RTOS_CONFIG_TRUE)
 #define RTOS_CFG_NUM_MAILBOX                        (3)
 #define RTOS_CFG_MBOX_DATA                          U4                    /* Data type for mailbox */
 
 /* Message Queues */
-#define RTOS_CFG_OS_QUEUE_ENABLED                   (RTOS_CONFIG_FALSE)
+#define RTOS_CFG_OS_QUEUE_ENABLED                   (RTOS_CONFIG_TRUE)
 #define RTOS_CFG_NUM_FIFO                           (3)
 #define RTOS_CFG_BUFFER_LENGTH                      (10)
-#define RTOS_CFG_BUFFER_DATA                        U4                    /* Data type for queue */
+#define RTOS_CFG_MAX_NUM_BLOCKED_TASKS_FIFO         (3)
+#define RTOS_CFG_BUFFER_DATA                        U4
 
 /* Semaphores */
 #define RTOS_CFG_OS_SEMAPHORE_ENABLED               (RTOS_CONFIG_TRUE)
@@ -51,7 +52,7 @@
 /* Flags */
 #define RTOS_CFG_OS_FLAGS_ENABLED                   (RTOS_CONFIG_TRUE)
 #define RTOS_CFG_NUM_FLAG_OBJECTS                   (2)
-#define RTOS_CFG_MAX_NUM_TASKS_PEND_FLAGS           (2)                   /* Maximum number of tasks that can pend on  flags object. */
+#define RTOS_CFG_MAX_NUM_TASKS_PEND_FLAGS           (2)                   /* Maximum number of tasks that can pend on flags object. */
 
 /* I/O */
 #define PART_TM4C123GH6PM 1
@@ -60,7 +61,9 @@
 /*************************************************************************/
 /*  Data Types                                                           */
 /*************************************************************************/
-
+/* Internal - Do not modify */
+typedef RTOS_CFG_MBOX_DATA   MAIL;
+typedef RTOS_CFG_BUFFER_DATA Q_MEM;
 
 /*************************************************************************/
 /*  Public Functions                                                     */
