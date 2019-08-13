@@ -26,20 +26,21 @@ struct ListNode; /* Forward declaration. Defined in "listMgr_internal.h" */
 
 typedef struct Sch_Task
 {
-  OS_STACK*  stackPtr; /* Task stack pointer must be first entry in struct. */
-  U1         priority;
-  U1         taskID;
-  U1         flags;
-  U4         sleepCntr;
-  void*      resource;
-  U1         wakeReason;
+  OS_STACK*  stackPtr;        /* Task stack pointer must be first entry in struct. */
+  U1         priority;        /* Task priority. */
+  U1         taskID;          /* Task ID. Task can be referenced via this number. */
+  U1         flags;           /* Status flags used for scheduling. */
+  U4         sleepCntr;       /* Sleep counter. Unit is scheduler ticks. */
+  void*      resource;        /* If task is blocked on a resource, its address is stored here. */
+  U1         wakeReason;      /* Stores code for reason task was most recently woken up. */
 #if(RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT == RTOS_CONFIG_TRUE)
-  OS_STACK*  topOfStack;
+  OS_STACK*  topOfStack;      /* Pointer to stack watermark. Used to detect stack overflow. */
 #endif
 }
 Sch_Task;
 
 #if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
+/* Used to calculate CPU load. */
 typedef struct CPU_IdleCalc
 {
   U1 CPU_idleAvg;
@@ -48,9 +49,10 @@ typedef struct CPU_IdleCalc
 }
 CPU_IdleCalc;
 
+/* More CPU run-time statistics can be added here. */
 typedef struct OS_RunTimeStats
 {
-  CPU_IdleCalc  CPUIdlePercent;
+  CPU_IdleCalc  CPUIdlePercent;     
 }
 OS_RunTimeStats;
 #endif
@@ -82,19 +84,14 @@ void vd_OSsch_setReasonForWakeup(U1 reason, Sch_Task* wakeupTaskTCB);
 void vd_OSsch_setReasonForSleep(void* taskSleepResource, U1 resourceType);
 
 /*************************************************************************/
-/*  Function Name: tcb_OSsch_getCurrentTCB                               */
-/*  Purpose:       Returns pointer to current TCB for block list storage.*/
-/*  Arguments:     N/A                                                   */
-/*  Return:        Sch_Task*: Current TCB address.                       */
-/*************************************************************************/
-//Sch_Task* tcb_OSsch_getCurrentTCB(void);
-
-/*************************************************************************/
 /*  Global Variables                                                     */
 /*************************************************************************/
-extern Sch_Task* tcb_g_p_currentTaskBlock; /* Lets internal modules quickly dereference current task data. Should be used as read-only. */
- 
-#define SCH_CURRENT_TCB_ADDR                (tcb_g_p_currentTaskBlock)
-#define SCH_CURRENT_TASK_ID                 ((U1)(tcb_g_p_currentTaskBlock->taskID))
+extern Sch_Task*        tcb_g_p_currentTaskBlock;                    /* Lets internal modules quickly dereference current task data. Should be used as read-only. */
+extern struct ListNode* Node_s_ap_mapTaskIDToTCB[SCH_MAX_NUM_TASKS]; /* Lets internal modules quickly dereference TCB from task ID. */
+
+/* THESE MACROS MUST BE USED AS READ-ONLY. MADE AVAILABLE FOR BLOCK LIST HANDLING BY RESOURCES. */
+#define SCH_CURRENT_TCB_ADDR                (tcb_g_p_currentTaskBlock)                 /* Address of current task TCB. */
+#define SCH_CURRENT_TASK_ID                 ((U1)(tcb_g_p_currentTaskBlock->taskID))   /* ID of current task. */
+#define SCH_ID_TO_TCB(c)                    (Node_s_ap_mapTaskIDToTCB[c]->TCB)         /* Get TCB address from task ID. */
 
 #endif 
