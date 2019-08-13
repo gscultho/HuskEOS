@@ -4,27 +4,28 @@
 /*  Created by: Garrett Sculthorpe on 3/20/19.                           */
 /*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
-
-/* Each queue can have up to four blocked tasks given a scheduler index size
-   of one byte. If a fifth task tries to access the fifo and is blocked, it
-   replaces the most recently blocked task on the list and does not wake up
-   the removed task. The removed task sleeps until it times out. */
    
 /* If multiple dequeue tasks are blocked, when data is put into the queue 
-   the task with the highest priority shall receive the data. The others
-   will simply be unblocked. */ 
+   the task with the highest priority shall receive the data. */ 
    
+#include "rtos_cfg.h"
+
+#if(RTOS_CFG_OS_QUEUE_ENABLED == RTOS_CONFIG_TRUE)
+
 /*************************************************************************/
 /*  Includes                                                             */
 /*************************************************************************/
+#include "listMgr_internal.h"
+#include "queue_internal_IF.h"
 #include "queue.h"
+#include "sch_internal_IF.h"
 #include "sch.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
 #define QUEUE_SIZE_ONE_BYTE                   (8)
-#define QUEUE_MAX_NUM_BLOCKED_TASKS           (4)
+#define QUEUE_MAX_NUM_BLOCKED_TASKS           (RTOS_CFG_MAX_NUM_BLOCKED_TASKS_FIFO)
 #define QUEUE_TASK_ID_SAVE_OFFSET             (1)
 #define QUEUE_BLOCKED_TASK_LIST_CLEAR         (0)
 #define QUEUE_BLOCKED_TASK_LIST_PARSE_MASK    (0x000000FF)
@@ -32,8 +33,8 @@
 #define QUEUE_PUT_PTR_START_INDEX             (1)
 #define QUEUE_BLOCK_PERIOD_NO_BLOCK           (0)
 #define QUEUE_SEMA_NO_BLOCK                   (0)
-#define QUEUE_NUM_VALID                       (0)
-
+#define QUEUE_NULL_PTR                        ((void*)0)
+#define QUEUE_ENTRY_DATA_SIZE                 (sizeof(Q_MEM))
  
 /*************************************************************************/
 /*  Global Variables, Constants                                          */
@@ -44,7 +45,7 @@ static Queue queue_queueList[FIFO_MAX_NUM_QUEUES];
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
 /*************************************************************************/
-static void vd_queue_addTaskToBlocked(U1 queueNum);
+static void vd_OSqueue_addTaskToBlocked(U1 queueNum);
 static void vd_queue_unblockWaitingTasks(U1 queueNum);
 static U1   u1_queue_checkValidFIFO(U1 queueNum);
 
@@ -52,36 +53,59 @@ static U1   u1_queue_checkValidFIFO(U1 queueNum);
 /*************************************************************************/
 
 /*************************************************************************/
-/*  Function Name: vd_queue_init                                         */
-/*  Purpose:       Initialize FIFO module.                               */
-/*  Arguments:     N/A                                                   */
-/*  Return:        N/A                                                   */
+/*  Function Name: u1_OSqueue_init                                       */
+/*  Purpose:       Initialize FIFO and provide ID number.                */
+/*  Arguments:     Q_MEM* queueStart:                                    */
+/*                        Pointer to first address allocated for queue.  */
+/*                 U4 queueLength:                                       */
+/*                        Length of queue. Number of Q_MEM entries.      */
+/*  Return:        U1: FIFO_FAILURE   OR                                 */
+/*                     queue ID number.                                  */
 /*************************************************************************/
-void vd_queue_init(void)
+U1 u1_OSqueue_init(Q_MEM* queueStart, U4 queueLength)
 {
-  U1 u1_t_queueIndex;
-  U1 u1_t_dataIndex;
+         U1 u1_t_index;
+         U1 u1_t_return;
+  static U1 u1_s_numQueuesAllocated = (U1)ZERO;
   
-  for(u1_t_queueIndex = 0; u1_t_queueIndex < FIFO_MAX_NUM_QUEUES; u1_t_queueIndex++)
+  /* Check that there is available overhead for new queue. */
+  if(u1_s_numQueuesAllocated < (U1)FIFO_MAX_NUM_QUEUES)
   {
-    queue_queueList[u1_t_queueIndex].getPtr          = &queue_queueList[u1_t_queueIndex].data[QUEUE_GET_PTR_START_INDEX]; 
-    queue_queueList[u1_t_queueIndex].putPtr          = &queue_queueList[u1_t_queueIndex].data[QUEUE_PUT_PTR_START_INDEX];    
-    queue_queueList[u1_t_queueIndex].blockedTaskList = QUEUE_BLOCKED_TASK_LIST_CLEAR;  
+    /* Return queue ID number. */
+    u1_t_return = u1_s_numQueuesAllocated;
     
-    vd_OSsema_init(&queue_queueList[u1_t_queueIndex].bufferSema); /* Init semaphore to enabled. */
+    OS_SCH_ENTER_CRITICAL();
     
-    for(u1_t_dataIndex = (U1)ZERO; u1_t_dataIndex < FIFO_QUEUE_LENGTH_WORDS; u1_t_dataIndex++)
+    queue_queueList[u1_s_numQueuesAllocated].startPtr                        = queueStart;
+    queue_queueList[u1_s_numQueuesAllocated].endPtr                          = queueStart + queueLength - (U1)ONE;
+    queue_queueList[u1_s_numQueuesAllocated].getPtr                          = &queue_queueList[u1_s_numQueuesAllocated].startPtr[QUEUE_GET_PTR_START_INDEX]; /* Offset 0 from start. */
+    queue_queueList[u1_s_numQueuesAllocated].putPtr                          = &queue_queueList[u1_s_numQueuesAllocated].startPtr[QUEUE_PUT_PTR_START_INDEX]; /* Offset 1 from start. */
+    queue_queueList[u1_s_numQueuesAllocated].blockedTaskList.blockedListHead = QUEUE_NULL_PTR;
+
+    for(u1_t_index = (U1)ZERO; u1_t_index < (U1)RTOS_CFG_MAX_NUM_BLOCKED_TASKS_FIFO; u1_t_index++)
     {
-      queue_queueList[u1_t_queueIndex].data[u1_t_dataIndex] = (Q_MEM)ZERO;
+      queue_queueList[u1_s_numQueuesAllocated].blockedTaskList.blockedTasks[u1_t_index].nextNode     = QUEUE_NULL_PTR;
+      queue_queueList[u1_s_numQueuesAllocated].blockedTaskList.blockedTasks[u1_t_index].previousNode = QUEUE_NULL_PTR;
+      queue_queueList[u1_s_numQueuesAllocated].blockedTaskList.blockedTasks[u1_t_index].TCB          = QUEUE_NULL_PTR;
     }
+    
+    ++u1_s_numQueuesAllocated;
+    
+    OS_SCH_EXIT_CRITICAL();
   }
+  else
+  {
+    u1_t_return = (U1)FIFO_FAILURE;
+  }
+  
+  return (u1_t_return);
 }
 
 /*************************************************************************/
 /*  Function Name: u1_OSqueue_flushFifo                                  */
 /*  Purpose:       Clear all values in a queue.                          */
 /*  Arguments:     U1  u1_queueNum:                                      */
-/*                     Index for queue to be flushed.                    */
+/*                     Index for queue to be flushed.                 */
 /*                 U1* error:                                            */
 /*                     Address to write error to.                        */
 /*  Return:        FIFO_SUCCESS                    OR                    */
@@ -89,37 +113,37 @@ void vd_queue_init(void)
 /*************************************************************************/
 U1 u1_OSqueue_flushFifo(U1 queueNum, U1* error)
 {
-  U1 u1_t_dataIndex;
-  U1 u1_t_semaSts;
+  Q_MEM* data_t_p_dataPtr;
+  U1     u1_t_return;
   
   *error = u1_queue_checkValidFIFO(queueNum);
   
   if(*error)    
   {   
-    return ((U1)FIFO_FAILURE);  
+    u1_t_return = (U1)FIFO_FAILURE;  
   }
-  
-  u1_t_semaSts = u1_OSsema_wait(&queue_queueList[queueNum].bufferSema, (U4)QUEUE_SEMA_NO_BLOCK); 
-  
-  if(!u1_t_semaSts)
+  else
   {
-    *error = (U1)FIFO_ERR_QUEUE_IN_USE;
-    return ((U1)FIFO_FAILURE);
-  }
-  
-  queue_queueList[queueNum].getPtr = &queue_queueList[queueNum].data[QUEUE_GET_PTR_START_INDEX]; 
-  queue_queueList[queueNum].putPtr = &queue_queueList[queueNum].data[QUEUE_PUT_PTR_START_INDEX];  
+    OS_SCH_ENTER_CRITICAL();
     
-  for(u1_t_dataIndex = (U1)ZERO; u1_t_dataIndex < (U1)FIFO_QUEUE_LENGTH_WORDS; u1_t_dataIndex++)
-  {
-    queue_queueList[queueNum].data[u1_t_dataIndex] = (Q_MEM)ZERO;
+    queue_queueList[queueNum].getPtr = queue_queueList[queueNum].startPtr; 
+    queue_queueList[queueNum].putPtr = queue_queueList[queueNum].startPtr;  
+    data_t_p_dataPtr                 = queue_queueList[queueNum].startPtr;  
+      
+    while(data_t_p_dataPtr != (Q_MEM*)queue_queueList[queueNum].endPtr)
+    {
+      *data_t_p_dataPtr = (Q_MEM)ZERO;
+      ++data_t_p_dataPtr;
+    }
+    
+    vd_queue_unblockWaitingTasks(queueNum);
+    
+    OS_SCH_EXIT_CRITICAL();
+    
+    u1_t_return = (U1)FIFO_SUCCESS;
   }
   
-  vd_queue_unblockWaitingTasks(queueNum);
-  
-  u1_OSsema_post(&queue_queueList[queueNum].bufferSema);
-  
-  return ((U1)FIFO_SUCCESS);
+  return (u1_t_return);
 }
 
 /*************************************************************************/
@@ -130,80 +154,112 @@ U1 u1_OSqueue_flushFifo(U1 queueNum, U1* error)
 /*                 U4  blockPeriod:                                      */
 /*                     Sleep timeout period if task is blocked.          */
 /*                 U1* error:                                            */
-/*                     Address to write error to.                        */
+/*                     Address to write error to.                 */
 /*  Return:        Q_MEM FIFO_FAILURE         OR                         */
 /*                       Q_MEM_t_data                                    */
 /*************************************************************************/
 Q_MEM data_OSqueue_get(U1 queueNum, U4 blockPeriod, U1* error)
 {
-  Q_MEM  Q_MEM_t_data;
-  Q_MEM* Q_MEM_t_p_nextGetPtr;
+  Q_MEM* data_t_p_nextGetPtr;
+  Q_MEM  data_t_return;
   
   *error = u1_queue_checkValidFIFO(queueNum);
   
   if(*error)    
   {   
-    return ((U1)FIFO_FAILURE);  
-  }
-  
-  /* If semaphore taken by other task */
-  if(!(u1_OSsema_wait(&queue_queueList[queueNum].bufferSema, (U4)QUEUE_SEMA_NO_BLOCK)))
-  {
-    *error = (U1)FIFO_ERR_QUEUE_IN_USE;
-    
-    if(blockPeriod != (U4)QUEUE_BLOCK_PERIOD_NO_BLOCK)
-    {
-      vd_queue_addTaskToBlocked(queueNum);
-      vd_sch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE);
-      vd_OSsch_taskSleep(blockPeriod); 
-    }
-    
-    return ((U4)FIFO_FAILURE);
-  }    
-  
-  /* Check space ahead of getPtr */
-  if(queue_queueList[queueNum].getPtr == &queue_queueList[queueNum].data[FIFO_QUEUE_LENGTH_WORDS - 1])
-  {
-    Q_MEM_t_p_nextGetPtr = &queue_queueList[queueNum].data[ZERO];
+    data_t_return = (Q_MEM)FIFO_FAILURE;  
   }
   else
-  {
-    Q_MEM_t_p_nextGetPtr = queue_queueList[queueNum].getPtr + 1;
-  }
-  
-  /* If queue is empty */
-  if(Q_MEM_t_p_nextGetPtr == queue_queueList[queueNum].putPtr)
-  {    
-    *error = (U1)FIFO_ERR_QUEUE_EMPTY;
+  {   
+    OS_SCH_ENTER_CRITICAL();
     
-    u1_OSsema_post(&queue_queueList[queueNum].bufferSema);
-    
-    /* Block task if blocking enabled */
-    if(blockPeriod != (U4)QUEUE_BLOCK_PERIOD_NO_BLOCK)
+    /* Check space ahead of getPtr */
+    if(queue_queueList[queueNum].getPtr == queue_queueList[queueNum].endPtr)
     {
-      vd_queue_addTaskToBlocked(queueNum);
-      vd_sch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE);
-      vd_OSsch_taskSleep(blockPeriod);   
+      data_t_p_nextGetPtr = queue_queueList[queueNum].startPtr;
+    }
+    else
+    {
+      data_t_p_nextGetPtr = queue_queueList[queueNum].getPtr + (U1)ONE;
     }
     
-    return ((U4)FIFO_FAILURE);    
-  }
+    /* If queue is empty */
+    if(data_t_p_nextGetPtr == queue_queueList[queueNum].putPtr)
+    {    
+      *error = (U1)FIFO_ERR_QUEUE_EMPTY;
+      
+      /* Block task if blocking enabled */
+      if(blockPeriod != (U4)QUEUE_BLOCK_PERIOD_NO_BLOCK)
+      {
+        vd_OSqueue_addTaskToBlocked(queueNum);
+        vd_OSsch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE);
+        vd_OSsch_taskSleep(blockPeriod); 
+        
+        /* Let task enter sleep state. */
+        OS_SCH_EXIT_CRITICAL();
+        
+        /* When task wakes back up, check again. */
+        OS_SCH_ENTER_CRITICAL(); 
+
+        /* If queue is empty */
+        if(data_t_p_nextGetPtr == queue_queueList[queueNum].putPtr)
+        {  
+          *error = (Q_MEM)FIFO_ERR_NO_ERROR;
+          
+          /* Dequeue and clear entry */
+          data_t_return                       = *(queue_queueList[queueNum].getPtr);
+          *(queue_queueList[queueNum].getPtr) = (U1)ZERO;
+          
+          /* Unblock highest priority task that is blocked. */
+          if(queue_queueList[queueNum].blockedTaskList.blockedListHead != QUEUE_NULL_PTR)
+          {
+            vd_queue_unblockWaitingTasks(queueNum);
+          }
+          else
+          {
+            
+          }
+      
+          /* Move pointer */
+          queue_queueList[queueNum].getPtr = data_t_p_nextGetPtr;
+        }
+        else
+        {
+          /* Don't block since task was already blocked. */ 
+          data_t_return = (Q_MEM)FIFO_FAILURE; 
+        }   
+      }
+      else
+      {
+        /* Non-blocking. Return to task */
+        data_t_return = (Q_MEM)FIFO_FAILURE; 
+      }/* blockPeriod != (U4)QUEUE_BLOCK_PERIOD_NO_BLOCK */    
+    }
+    else
+    {        
+      /* Else move pointer */
+      queue_queueList[queueNum].getPtr = data_t_p_nextGetPtr;
+      
+      /* Dequeue and clear entry */
+      data_t_return                       = *(queue_queueList[queueNum].getPtr);
+      *(queue_queueList[queueNum].getPtr) = (U1)ZERO;
+      
+      /* Unblock highest priority task that is blocked. */
+      if(queue_queueList[queueNum].blockedTaskList.blockedListHead != QUEUE_NULL_PTR)
+      {
+        vd_queue_unblockWaitingTasks(queueNum);
+      }
+      else
+      {
+        
+      }
+    }/* data_t_p_nextGetPtr == queue_queueList[queueNum].putPtr */
+    
+    OS_SCH_EXIT_CRITICAL();
+    
+  }/* if(*error)  */
   
-  /* Else move pointer */
-  queue_queueList[queueNum].getPtr = Q_MEM_t_p_nextGetPtr;
-  
-  /* Dequeue and clear entry */
-  Q_MEM_t_data = *(queue_queueList[queueNum].getPtr);
-  *(queue_queueList[queueNum].getPtr) = (U1)ZERO;
-  
-  if(queue_queueList[queueNum].blockedTaskList != (U4)ZERO)
-  {
-    vd_queue_unblockWaitingTasks(queueNum);
-  }
-  
-  u1_OSsema_post(&queue_queueList[queueNum].bufferSema);
-  
-  return (Q_MEM_t_data);
+  return (data_t_return);
 }
 
 /*************************************************************************/
@@ -227,34 +283,38 @@ U1 u1_OSqueue_getSts(U1 queueNum, U1* error)
   
   if(*error)    
   {   
-    return ((U1)FIFO_FAILURE);  
-  }
-  
-  u1_t_sts = (U1)FIFO_STS_QUEUE_READY;
-  
-  OS_CPU_ENTER_CRITICAL();
-  
-  /* Check space ahead of getPtr */
-  if(queue_queueList[queueNum].getPtr == &queue_queueList[queueNum].data[FIFO_QUEUE_LENGTH_WORDS - 1])
-  {
-    Q_MEM_t_p_nextGetPtr = &queue_queueList[queueNum].data[(U1)ZERO];
+    u1_t_sts = (U1)FIFO_FAILURE;  
   }
   else
-  {
-    Q_MEM_t_p_nextGetPtr = queue_queueList[queueNum].getPtr + 1;
+  {    
+    OS_CPU_ENTER_CRITICAL();
+    
+    /* Check space ahead of getPtr */
+    if(queue_queueList[queueNum].getPtr == queue_queueList[queueNum].endPtr)
+    {
+      Q_MEM_t_p_nextGetPtr = queue_queueList[queueNum].startPtr;
+    }
+    else
+    {
+      Q_MEM_t_p_nextGetPtr = queue_queueList[queueNum].getPtr + (U1)ONE;
+    }
+    
+    /* Get status */
+    if(Q_MEM_t_p_nextGetPtr == queue_queueList[queueNum].putPtr)
+    {
+      u1_t_sts = (U1)FIFO_STS_QUEUE_EMPTY;    
+    } 
+    else if(queue_queueList[queueNum].putPtr == (queue_queueList[queueNum].getPtr))
+    {
+      u1_t_sts = (U1)FIFO_STS_QUEUE_FULL;    
+    }
+    else
+    {
+      u1_t_sts = (U1)FIFO_STS_QUEUE_READY;
+    }
+    
+    OS_CPU_EXIT_CRITICAL();
   }
-  
-  if(Q_MEM_t_p_nextGetPtr == queue_queueList[queueNum].putPtr)
-  {
-    u1_t_sts = (U1)FIFO_STS_QUEUE_EMPTY;    
-  }
-  
-  if(queue_queueList[queueNum].putPtr == (queue_queueList[queueNum].getPtr))
-  {
-    u1_t_sts = (U1)FIFO_STS_QUEUE_FULL;    
-  }
-  
-  OS_CPU_EXIT_CRITICAL();
   
   return (u1_t_sts);
 }
@@ -275,69 +335,102 @@ U1 u1_OSqueue_getSts(U1 queueNum, U1* error)
 /*************************************************************************/
 U1 u1_OSqueue_put(U1 queueNum, U4 blockPeriod, Q_MEM message, U1* error)
 {
+  U1 u1_t_return;
+  
   *error = u1_queue_checkValidFIFO(queueNum);
   
   if(*error)    
   {   
-    return ((U1)FIFO_FAILURE);  
-  }
-  
-  /* If semaphore taken by other task */
-  if(!(u1_OSsema_wait(&queue_queueList[queueNum].bufferSema, (U4)QUEUE_SEMA_NO_BLOCK)))
-  {
-    *error = (U1)FIFO_ERR_QUEUE_IN_USE;
-    
-    /* Block if blocking is enabled */
-     if(blockPeriod != (U4)QUEUE_BLOCK_PERIOD_NO_BLOCK)
-     {
-       vd_queue_addTaskToBlocked(queueNum);
-       vd_sch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE);
-       vd_OSsch_taskSleep(blockPeriod); 
-     }
-     /* Else return immediately */
-     return ((U1)FIFO_FAILURE);
-  }
-  
-  /* If queue is full */
-  if(queue_queueList[queueNum].putPtr == (queue_queueList[queueNum].getPtr))
-  {
-    *error = (U1)FIFO_ERR_QUEUE_FULL;
-    
-    u1_OSsema_post(&queue_queueList[queueNum].bufferSema);
-    
-    /* Block if blocking is enabled */
-    if(blockPeriod != (U4)QUEUE_BLOCK_PERIOD_NO_BLOCK)
-    {
-      vd_queue_addTaskToBlocked(queueNum);
-      vd_sch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE);
-      vd_OSsch_taskSleep(blockPeriod);
-    }
-    /* Else return immediately */
-    return ((U1)FIFO_FAILURE);
-  }
-  
-  /* Puts data in queue */
-  *(queue_queueList[queueNum].putPtr) = message;
-  
-  /* Shift pointers */
-  if(queue_queueList[queueNum].putPtr == &queue_queueList[queueNum].data[FIFO_QUEUE_LENGTH_WORDS - 1])
-  {
-    queue_queueList[queueNum].putPtr = &queue_queueList[queueNum].data[ZERO];
+    u1_t_return = (U1)FIFO_FAILURE;  
   }
   else
-  {
-    ++queue_queueList[queueNum].putPtr;
-  }
+  {    
+    OS_SCH_ENTER_CRITICAL();
+    
+    /* If queue is full */
+    if(queue_queueList[queueNum].putPtr == (queue_queueList[queueNum].getPtr))
+    {
+      *error = (U1)FIFO_ERR_QUEUE_FULL;
+
+      /* Block if blocking is enabled */
+      if(blockPeriod != (U4)QUEUE_BLOCK_PERIOD_NO_BLOCK)
+      {
+        vd_OSqueue_addTaskToBlocked(queueNum);
+        vd_OSsch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE);
+        vd_OSsch_taskSleep(blockPeriod);
+        
+        /* Let task enter sleep state. */
+        OS_SCH_EXIT_CRITICAL();
+        
+        /* Check if queue is full after task wakes up. */
+        OS_SCH_ENTER_CRITICAL();
+        
+        if(queue_queueList[queueNum].putPtr != (queue_queueList[queueNum].getPtr)) /* Spot is available. */
+        {
+          *error = (Q_MEM)FIFO_ERR_NO_ERROR;
+          
+          /* Puts data in queue */
+          *(queue_queueList[queueNum].putPtr) = message;
+          
+          /* Shift pointer */
+          if(queue_queueList[queueNum].putPtr == queue_queueList[queueNum].endPtr)
+          {
+            queue_queueList[queueNum].putPtr = queue_queueList[queueNum].startPtr;
+          }
+          else
+          {
+            ++queue_queueList[queueNum].putPtr;
+          }
+          
+          /* Check if tasks need to be woken */
+          if(queue_queueList[queueNum].blockedTaskList.blockedListHead != QUEUE_NULL_PTR)
+          {
+            vd_queue_unblockWaitingTasks(queueNum);
+          }
+          
+          u1_t_return = (Q_MEM)FIFO_SUCCESS;           
+        }
+        else
+        {
+          /* Don't block again since this is the second check. */
+          u1_t_return = (U1)FIFO_FAILURE; 
+        }/* queue_queueList[queueNum].putPtr != (queue_queueList[queueNum].getPtr) */
+      }
+      else 
+      {
+        /* API call is non-blocking, don't block. */
+        u1_t_return = (U1)FIFO_FAILURE; 
+      } /* queue_queueList[queueNum].putPtr != (queue_queueList[queueNum].getPtr) */
+    }
+    else
+    {
+      u1_t_return = (U1)FIFO_QUEUE_PUT_SUCCESS;
+      
+      /* Puts data in queue */
+      *(queue_queueList[queueNum].putPtr) = message;
+      
+      /* Shift pointer */
+      if(queue_queueList[queueNum].putPtr == queue_queueList[queueNum].endPtr)
+      {
+        queue_queueList[queueNum].putPtr = queue_queueList[queueNum].startPtr;
+      }
+      else
+      {
+        ++queue_queueList[queueNum].putPtr;
+      }
+      
+      /* Check if tasks need to be woken */
+      if(queue_queueList[queueNum].blockedTaskList.blockedListHead != QUEUE_NULL_PTR)
+      {
+        vd_queue_unblockWaitingTasks(queueNum);
+      }
+    }/* queue_queueList[queueNum].putPtr == (queue_queueList[queueNum].getPtr) */
+    
+    OS_SCH_EXIT_CRITICAL();
+    
+  }/* if(*error) */
   
-  /* Check if tasks need to be woken */
-  if(queue_queueList[queueNum].blockedTaskList != (U4)ZERO)
-  {
-    vd_queue_unblockWaitingTasks(queueNum);
-  }
-  
-  u1_OSsema_post(&queue_queueList[queueNum].bufferSema);
-  
-  return ((U1)FIFO_SUCCESS);
+  return (u1_t_return);
 }
 
 /*************************************************************************/
@@ -383,6 +476,28 @@ U1 vd_OSqueue_getNumInFIFO(U1 queueNum, U1* error)
 }
 
 /*************************************************************************/
+/*  Function Name: vd_OSqueue_blockedTaskTimeout                           */
+/*  Purpose:       Update block list if a task times out on its block.   */
+/*  Arguments:     void* queueAddr                                       */
+/*                    Address of queue structure.                        */
+/*                 U1 taskID:                                  */
+/*                    Queue index number.                                */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
+void vd_OSqueue_blockedTaskTimeout(void* queueAddr, struct Sch_Task* taskTCB)
+{
+  ListNode* node_t_tempPtr;
+  
+  OS_SCH_ENTER_CRITICAL();
+  
+  /* Remove node from block list and clear its contents */
+  node_t_tempPtr      = node_list_removeNodeByTCB((&((OSQueue*)queueAddr)->blockedTaskList.blockedListHead), taskTCB);
+  node_t_tempPtr->TCB = QUEUE_NULL_PTR;
+  
+  OS_SCH_EXIT_CRITICAL();
+}
+
+/*************************************************************************/
 /*  Function Name: u1_queue_checkValidFIFO                               */
 /*  Purpose:       Return if queue index is valid or invalid.            */
 /*  Arguments:     U1 queueNum:                                          */
@@ -398,78 +513,32 @@ static U1 u1_queue_checkValidFIFO(U1 queueNum)
     return ((U1)FIFO_ERR_QUEUE_OUT_OF_RANGE);  
   } 
   
-  return((U1)QUEUE_NUM_VALID);
+  return((U1)FIFO_ERR_NO_ERROR);
 }
 
 /*************************************************************************/
-/*  Function Name: vd_queue_blockedTaskTimeout                           */
-/*  Purpose:       Update block list if a task times out on its block.   */
-/*  Arguments:     void* queueAddr                                       */
-/*                    Address of queue structure.                        */
-/*                 U1 taskID:                                            */
-/*                    Queue index number.                                */
-/*  Return:        N/A                                                   */
-/*************************************************************************/
-void vd_queue_blockedTaskTimeout(void* queueAddr, U1 taskID)
-{
-  U1     u1_t_index;
-  U4     u4_t_taskMask;
-  Queue* queue;
-  
-  queue         = (Queue*)queueAddr;  
-  u4_t_taskMask = (taskID + (U1)QUEUE_TASK_ID_SAVE_OFFSET);
-  
-  for(u1_t_index = (U1)ZERO; u1_t_index < (U1)QUEUE_MAX_NUM_BLOCKED_TASKS; u1_t_index++)
-  {
-    /* Shift to spot on list that is about to be checked */
-    u4_t_taskMask <<= (((U1)QUEUE_SIZE_ONE_BYTE)*u1_t_index);
-    
-    /* Check if task already waiting on this mailbox */
-    if((queue->blockedTaskList & u4_t_taskMask) == u4_t_taskMask)
-    {
-      queue->blockedTaskList &= ~u4_t_taskMask;
-      break;
-    }
-  }
-}
-
-/*************************************************************************/
-/*  Function Name: vd_queue_addTaskToBlocked                             */
+/*  Function Name: vd_OSqueue_addTaskToBlocked                             */
 /*  Purpose:       Add task ID (offset by one) to block list.            */
 /*  Arguments:     U1 queueNum:                                          */
 /*                    Queue index being referenced.                      */
 /*  Return:        void                                                  */
 /*************************************************************************/
-static void vd_queue_addTaskToBlocked(U1 queueNum)
+static void vd_OSqueue_addTaskToBlocked(U1 queueNum)
 {
   U1 u1_t_index;
-  U4 u4_t_mask;
-  U4 u4_t_addTaskMask;
   
-  u4_t_mask = (U4)QUEUE_BLOCKED_TASK_LIST_PARSE_MASK;
+  u1_t_index = (U1)ZERO;
   
-  u4_t_addTaskMask = u1_OSsch_getCurrentTask() + (U1)QUEUE_TASK_ID_SAVE_OFFSET;
-  
-  for(u1_t_index = (U1)ZERO; u1_t_index < (U1)QUEUE_MAX_NUM_BLOCKED_TASKS; u1_t_index++)
+  /* Find available node to store data */
+  while((queue_queueList[queueNum].blockedTaskList.blockedTasks[u1_t_index].TCB != QUEUE_NULL_PTR) && (u1_t_index < (U1)QUEUE_MAX_NUM_BLOCKED_TASKS)) 
+  {    
+    ++u1_t_index;
+  }
+  /* If node found, then store TCB pointer and add to blocked list */
+  if(u1_t_index < (U1)QUEUE_MAX_NUM_BLOCKED_TASKS)
   {
-    /* Shift to spot on list that is about to be checked */
-    u4_t_addTaskMask <<= (((U1)QUEUE_SIZE_ONE_BYTE)*u1_t_index);
-    
-    /* Check if task already waiting on this queue */
-    if((queue_queueList[queueNum].blockedTaskList & u4_t_addTaskMask) == u4_t_addTaskMask)
-    {
-      break;
-    }
-    
-    /* Check if this spot on list is occupied */
-    if(!(queue_queueList[queueNum].blockedTaskList & u4_t_mask))
-    {  
-      /* Add current task to this spot on list */
-      queue_queueList[queueNum].blockedTaskList |= u4_t_addTaskMask;
-      break;
-    }
-    
-    u4_t_mask <<= (U1)QUEUE_SIZE_ONE_BYTE;
+    queue_queueList[queueNum].blockedTaskList.blockedTasks[u1_t_index].TCB = SCH_CURRENT_TCB_ADDR;
+    vd_list_addTaskByPrio(&(queue_queueList[queueNum].blockedTaskList.blockedListHead), &(queue_queueList[queueNum].blockedTaskList.blockedTasks[u1_t_index]));
   }
 }
 
@@ -482,32 +551,26 @@ static void vd_queue_addTaskToBlocked(U1 queueNum)
 /*************************************************************************/
 static void vd_queue_unblockWaitingTasks(U1 queueNum)
 {
-  U1 u1_t_index;
-  U4 u4_t_mask;
-  U4 u4_t_taskMask;
+  ListNode* node_t_p_highPrioTask;
   
-  u4_t_mask = (U4)QUEUE_BLOCKED_TASK_LIST_PARSE_MASK;
-  
-  for(u1_t_index = (U1)ZERO; u1_t_index < QUEUE_MAX_NUM_BLOCKED_TASKS; u1_t_index++)
-  {
-    u4_t_taskMask = (queue_queueList[queueNum].blockedTaskList & u4_t_mask);
+  /* If blocked list is not empty */
+  if(queue_queueList[queueNum].blockedTaskList.blockedListHead != QUEUE_NULL_PTR)
+  { 
+    /* Remove highest priority task */    
+    node_t_p_highPrioTask = node_list_removeFirstNode(&(queue_queueList[queueNum].blockedTaskList.blockedListHead));
     
-    /* Check if task is in spot on blocked list */
-    if(u4_t_taskMask == (U1)ZERO)
-    {
-
-    }
-    else
-    {
-      /* Remove task from list and wake up task */
-      queue_queueList[queueNum].blockedTaskList &= ~u4_t_taskMask;
-      vd_sch_setReasonForWakeup((U1)SCH_TASK_WAKEUP_QUEUE_READY, ((U1)(u4_t_taskMask - (U4)QUEUE_TASK_ID_SAVE_OFFSET)));
-    }
+    /*  Notify scheduler the reason that task is going to be woken. */    
+    vd_OSsch_setReasonForWakeup((U1)SCH_TASK_WAKEUP_QUEUE_READY, node_t_p_highPrioTask->TCB);
     
-    /* Move to next spot on list */
-    u4_t_mask <<= (U1)QUEUE_SIZE_ONE_BYTE;
+    /* Notify scheduler to change task state. If woken task is higher priority than running task, context switch will occur after critical section. */
+    vd_OSsch_taskWake(node_t_p_highPrioTask->TCB->taskID);
+    
+    /* Clear TCB pointer. This frees this node for future use. */
+    node_t_p_highPrioTask->TCB = QUEUE_NULL_PTR;   
   }
 }
+
+#endif /* Conditional compile */
 
 /***********************************************************************************************/
 /* History                                                                                     */
@@ -516,3 +579,4 @@ static void vd_queue_unblockWaitingTasks(U1 queueNum)
 /*                                                                                             */
 /* 0.1                3/25/19     First implementation of module.                              */
 /*                                                                                             */
+/* 1.0                8/5/19      Rewrite to support better flow and blocked task handling.    */
