@@ -5,12 +5,11 @@
 /*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
 /*************************************************************************/
 
-#ifndef queue_internal_IF_h /* Protection from declaring more than once */
+#ifndef queue_internal_IF_h 
 #define queue_internal_IF_h
 
 #include "cpu_defs.h"
 #include "rtos_cfg.h"
-#include "semaphore.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
@@ -21,13 +20,22 @@
 /*************************************************************************/
 /*  Data Types                                                           */
 /*************************************************************************/
-typedef struct
+struct listNode; /* Forward declaration. Defined in "listMgr_internal.h" */
+
+typedef struct blockedList
 {
-  Q_MEM*    putPtr;
-  Q_MEM*    getPtr;
-  Q_MEM     data[FIFO_QUEUE_LENGTH_WORDS];
-  U4        blockedTaskList;
-  Semaphore bufferSema;
+  struct ListNode  blockedTasks[RTOS_CFG_MAX_NUM_BLOCKED_TASKS_FIFO];
+  struct ListNode* blockedListHead;
+}
+blockedList;
+
+typedef struct Queue
+{
+  Q_MEM*      startPtr;          /* First memory address of FIFO. */
+  Q_MEM*      endPtr;            /* Last memory address of FIFO. */
+  Q_MEM*      putPtr;            /* Next data sent will be put here. */
+  Q_MEM*      getPtr;            /* Next get() call will take data from here. */
+  blockedList blockedTaskList;   /* Structure to track blocked tasks. */
 }
 Queue;
 
@@ -35,8 +43,7 @@ Queue;
 /*************************************************************************/
 /*  Public Functions                                                     */
 /*************************************************************************/
-void vd_queue_init(void);
-void vd_queue_blockedTaskTimeout(void* queueAddr, U1 taskID);
+void vd_OSqueue_blockedTaskTimeout(void* queueAddr, struct Sch_Task* taskTCB);
 
 
 /*************************************************************************/
@@ -44,4 +51,4 @@ void vd_queue_blockedTaskTimeout(void* queueAddr, U1 taskID);
 /*************************************************************************/
 
 
-#endif /* End conditional declaration for queue_internal_IF_h */
+#endif 
