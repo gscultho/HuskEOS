@@ -124,6 +124,14 @@ U1 u1_OSsch_getReasonForWakeup(void);
 U4 u4_OSsch_getTicks(void);
 
 /*************************************************************************/
+/*  Function Name: u1_OSsch_getCurrentTaskID                             */
+/*  Purpose:       Returns current task ID.                              */
+/*  Arguments:     N/A                                                   */
+/*  Return:        U1: Current task ID number.                           */
+/*************************************************************************/
+U1 u1_OSsch_getCurrentTaskID(void);
+  
+/*************************************************************************/
 /*  Function Name: u1_OSsch_getCurrentTaskPrio                           */
 /*  Purpose:       Returns current task priority.                        */
 /*  Arguments:     N/A                                                   */
@@ -137,7 +145,7 @@ U1 u1_OSsch_getCurrentTaskPrio(void);
 /*  Arguments:     N/A                                                   */
 /*  Return:        U1: Current task ID.                                  */
 /*************************************************************************/
-//U1 u1_OSsch_getCurrentTaskID(void);
+U1 u1_OSsch_getCurrentTaskID(void);
 
 /*************************************************************************/
 /*  Function Name: vd_OSsch_setNewTickPeriod                             */
@@ -178,7 +186,7 @@ U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime);
 void vd_OSsch_taskWake(U1 taskID); 
 
 /*************************************************************************/
-/*  Function Name: vd_OSsch_taskSleep                                    */
+/*  Function Name: vd_OSsch_taskSuspend                                  */
 /*  Purpose:       Suspend current task for a specified amount of time.  */
 /*  Arguments:     U1 taskIndex:                                         */
 /*                    Task ID to be suspended.                           */
