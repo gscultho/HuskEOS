@@ -8,14 +8,12 @@
 #ifndef queue_internal_IF_h 
 #define queue_internal_IF_h
 
-#include "cpu_defs.h"
 #include "rtos_cfg.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
-#define FIFO_QUEUE_LENGTH_WORDS              (RTOS_CFG_BUFFER_LENGTH) 
-#define Q_MEM                                 RTOS_CFG_BUFFER_DATA
+
 
 /*************************************************************************/
 /*  Data Types                                                           */
@@ -42,6 +40,16 @@ Queue;
 
 /*************************************************************************/
 /*  Public Functions                                                     */
+/*************************************************************************/
+/*************************************************************************/
+/*  Function Name: vd_OSqueue_blockedTaskTimeout                         */
+/*  Purpose:       Update block list if a task times out on its block.   */
+/*                 Called internally by scheduler.                       */
+/*  Arguments:     void* queueAddr                                       */
+/*                    Address of queue structure.                        */
+/*                 Sch_Task* taskTCB:                                    */
+/*                    TCB address of blocked task.                       */
+/*  Return:        N/A                                                   */
 /*************************************************************************/
 void vd_OSqueue_blockedTaskTimeout(void* queueAddr, struct Sch_Task* taskTCB);
 
