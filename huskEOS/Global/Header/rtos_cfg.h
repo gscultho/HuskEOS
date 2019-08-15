@@ -54,6 +54,9 @@
 #define RTOS_CFG_NUM_FLAG_OBJECTS                   (2)
 #define RTOS_CFG_MAX_NUM_TASKS_PEND_FLAGS           (2)                   /* Maximum number of tasks that can pend on flags object. */
 
+/* Memory */
+#define RTOS_CFG_MAX_NUM_MEM_BLOCKS                 (16)
+
 /* I/O */
 #define PART_TM4C123GH6PM 1
 
