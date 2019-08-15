@@ -58,7 +58,6 @@
 #define RTOS_CFG_MAX_NUM_MUTEX                      (2)                   /* Number of mutexes available in run-time. */
 #define RTOS_CFG_MAX_NUM_BLOCKED_TASKS_MUTEX        (2)                   /* Number of tasks that can block on each mutex. */
 
-
 /* Memory */
 #define RTOS_CFG_MAX_NUM_MEM_BLOCKS                 (16)
 
