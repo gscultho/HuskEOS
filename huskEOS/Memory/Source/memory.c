@@ -25,6 +25,41 @@
 /*************************************************************************/
 static OSMemBlock as_MemHeap[RTOS_CFG_MAX_NUM_MEM_BLOCKS];
 static U1         u1_NumBlocksAllocated = 0;
+static U1         u1_LargestBlockSize   = 0;
+
+
+/*************************************************************************/
+/*  Function Name: u1_FindHeapIndex                                      */
+/*  Purpose:       Find the index of the memory block with the same      */
+/*                 passed in start pointer.                              */
+/*  Arguments:     U1* pu1_BlockStart:                                   */
+/*                     Pointer to find in the heap.                      */
+/*                 U1* pu1_err:                                          */
+/*                     Pointer variable for error code.                  */
+/*  Return:        U1                                                    */
+/*************************************************************************/
+U1 u1_FindHeapIndex(U1* pu1_BlockStart, U1* pu1_err)
+{
+	U1 u1_HeapIndex = 0;
+	
+	/* loop through the structure and find the index */
+	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
+	{
+		/* return the current index if the pointers match */
+		if(as_MemHeap[u1_HeapIndex].start == pu1_BlockStart)
+		{
+			*pu1_err = MEM_NO_ERROR;
+			return u1_HeapIndex;
+		}
+		else
+		{
+			continue;
+		}
+	}
+	/* otherwise, set an error code and return 255 */
+	*pu1_err = MEM_ERR_BLOCK_NOT_FOUND;
+	return 255;
+}
 
 /*************************************************************************/
 /*  Function Name: v_OSMemBlockInit                                      */
@@ -71,6 +106,14 @@ void v_OSMemBlockInit(U1 u1_size, U1 u1_number, U1 *pu1_err)
 			}
 			++u1_NumBlocksAllocated;
 			
+			if(u1_LargestBlockSize < u1_size)
+			{
+				u1_LargestBlockSize = u1_size;
+			}
+			else
+			{
+			}
+			
 			OS_SCH_EXIT_CRITICAL();
 		}
 	}
@@ -99,11 +142,12 @@ U1* pu1_OSMalloc(U1 u1_size, U1* pu1_err)
 		/* check for block availability*/
 		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_NOT_IN_USE)
 		{
+			
+			OS_SCH_ENTER_CRITICAL();
+			
 			/* check to make sure the block is the proper size */
 			if(as_MemHeap[u1_HeapIndex].blockSize >= u1_size)
 			{
-				
-				OS_SCH_ENTER_CRITICAL();
 				
 				/* set block status to true and return pointer to memblock */
 				as_MemHeap[u1_HeapIndex].blockStatus = BLOCK_IN_USE;
@@ -117,6 +161,7 @@ U1* pu1_OSMalloc(U1 u1_size, U1* pu1_err)
 	    /* elses for standard compliance */
 			else
 			{
+				OS_SCH_EXIT_CRITICAL();
 				continue;
 			}
 		}
@@ -153,11 +198,12 @@ U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err)
 		/* check for block availability*/
 		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_NOT_IN_USE)
 		{
+			
+			OS_SCH_ENTER_CRITICAL();
+			
 			/* check to make sure the block is the proper size */
 			if(as_MemHeap[u1_HeapIndex].blockSize >= u1_size)
 			{
-				
-				OS_SCH_ENTER_CRITICAL();
 				
 				/* set block status to true and return pointer to memblock */
 				as_MemHeap[u1_HeapIndex].blockStatus = BLOCK_IN_USE;
@@ -177,6 +223,7 @@ U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err)
 	    /* elses for standard compliance */
 			else
 			{
+				OS_SCH_EXIT_CRITICAL();
 				continue;
 			}
 		}
@@ -251,16 +298,104 @@ void v_OSFree(U1* pu1_BlockStart, U1* pu1_err)
 /*************************************************************************/
 U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 {
-	U1 u1_LocalError = 0;
+	U1 u1_LocalError       = 0;
+	U1 u1_OldBlockIndex    = 0;
+	U1 u1_DataTransferIdx  = 0;
 	
-	v_OSFree(pu1_OldPointer, &u1_LocalError);
-	
-	if(u1_LocalError == 0)
+	/* case if the user requests a size zero */
+	if(u1_NewSize == 0)
 	{
-		/* DJCs Stop Point */
-		//pu1_OSMemAlloc
+		/* free the old pointer and check for error */
+		v_OSFree(pu1_OldPointer, &u1_LocalError);
+		if(u1_LocalError == MEM_NO_ERROR)
+		{
+			*pu1_err = MEM_NO_ERROR;
+		}
+		else
+		{
+			*pu1_err = u1_LocalError;
+		}
+		return NULL;
+	}
+	
+	/* case if the user requests a size outside of the possible range */
+	else if ( u1_NewSize < 0
+		     || u1_NewSize > u1_LargestBlockSize)
+	{
+		/* just return an error */
+		*pu1_err = MEM_ERR_INVALID_SIZE_REQUEST;
+		return NULL;
+	}
+	
+	/* case new size is valid */
+	else
+	{
+		/* first we try to reallocate a new memory block */
+		U1* pu1_NewPointer = pu1_OSMalloc(u1_NewSize, &u1_LocalError);
+		
+		/* next make sure there are no error codes */
+		if(  u1_LocalError == MEM_NO_ERROR 
+			&& pu1_NewPointer != NULL)
+		{
+			/* begin transfer of memory from old block to new block */
+			/* find index of old memory block */
+			u1_OldBlockIndex = u1_FindHeapIndex(pu1_OldPointer, &u1_LocalError);
+			
+			/* compare new size and old size, determine which is bigger */
+			if(u1_LocalError == MEM_NO_ERROR)
+			{
+				/* specific case where the user requests a smaller size than 
+				   the current allocation */
+				if(as_MemHeap[u1_OldBlockIndex].blockSize > u1_NewSize)
+				{
+					OS_SCH_ENTER_CRITICAL();
+					
+					for(u1_DataTransferIdx = 0; u1_DataTransferIdx < u1_NewSize; u1_DataTransferIdx++)
+					{
+						pu1_NewPointer[u1_DataTransferIdx] = pu1_OldPointer[u1_DataTransferIdx];
+					}
+					
+					OS_SCH_EXIT_CRITICAL();
+					/* free the old pointer, set a warning, and return the new pointer */
+					v_OSFree(pu1_OldPointer, &u1_LocalError);
+					*pu1_err = MEM_WARN_REALLOC_SMALLER_BLOCK;
+					return pu1_NewPointer;
+				}
+				
+				/* most cases where the user wants more data than previously allocated */
+				else
+				{
+          OS_SCH_ENTER_CRITICAL();
+					
+					for(u1_DataTransferIdx = 0; u1_DataTransferIdx < as_MemHeap[u1_OldBlockIndex].blockSize; u1_DataTransferIdx++)
+					{
+						pu1_NewPointer[u1_DataTransferIdx] = pu1_OldPointer[u1_DataTransferIdx];
+					}
+					
+					OS_SCH_EXIT_CRITICAL();
+					
+					/* free the old pointer, set an error if any, and return the new pointer */
+					v_OSFree(pu1_OldPointer, &u1_LocalError);
+					*pu1_err = u1_LocalError;
+					return pu1_NewPointer;
+				}									
+			}
+		}
+		
+		/* else any error occurred in the allocation */
+		else
+		{
+			*pu1_err = MEM_ERR_REALLOC_NO_BLOCKS_AVAIL;
+			return NULL;
+		}
 	}
 }
 
+
+
+void v_MemMaintenance()
+{
+	// to do: write this function !!
+}
 
 /******************************* end file ********************************/
