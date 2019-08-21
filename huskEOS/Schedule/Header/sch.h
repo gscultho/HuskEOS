@@ -2,7 +2,7 @@
 /*  File Name:  sch.h                                                    */
 /*  Purpose:    Header file for scheduler module.                        */
 /*  Created by: Garrett Sculthorpe on 2/9/19.                            */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
 /*************************************************************************/
 
 #ifndef sch_h 
@@ -23,7 +23,8 @@
 #define SCH_TASK_WAKEUP_MBOX_READY               (0x01)
 #define SCH_TASK_WAKEUP_QUEUE_READY              (0x02)
 #define SCH_TASK_WAKEUP_SEMA_READY               (0x03)
-#define SCH_TASK_WAKEUP_FLAGS_CLEARED            (0x04)
+#define SCH_TASK_WAKEUP_FLAGS_EVENT              (0x04)
+#define SCH_TASK_WAKEUP_MUTEX_READY              (0x05)
 
 #define OS_SCH_ENTER_CRITICAL(void)              (OS_CPU_ENTER_CRITICAL(void))
 #define OS_SCH_EXIT_CRITICAL(void)               (OS_CPU_EXIT_CRITICAL(void)) 
@@ -110,7 +111,7 @@ U4 u4_OSsch_getCurrentTickPeriodMs(void);
 /*                 SCH_TASK_WAKEUP_MBOX_READY             OR             */
 /*                 SCH_TASK_WAKEUP_QUEUE_READY            OR             */
 /*                 SCH_TASK_WAKEUP_SEMA_READY             OR             */
-/*                 SCH_TASK_WAKEUP_FLAGS_CLEARED          OR             */
+/*                 SCH_TASK_WAKEUP_FLAGS_EVENT            OR             */
 /*                 OS flags event that triggered wakeup                  */
 /*************************************************************************/
 U1 u1_OSsch_getReasonForWakeup(void);
