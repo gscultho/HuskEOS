@@ -2,7 +2,7 @@
 /*  File Name: sch.c                                                     */
 /*  Purpose: Init and routines for scheduler module and task handling.   */
 /*  Created by: Garrett Sculthorpe on 2/29/19.                           */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
 /*************************************************************************/
 
 /*************************************************************************/
@@ -48,6 +48,10 @@
 #include "flags_internal_IF.h"
 #endif
 
+#if(RTOS_CFG_OS_MUTEX_ENABLED == RTOS_CONFIG_TRUE)
+#include "mutex_internal_IF.h"
+#endif
+
 /*************************************************************************/
 /*  External References                                                  */
 /*************************************************************************/
@@ -71,7 +75,8 @@ extern void OSTaskFault(void);
 #define SCH_TASK_FLAG_SLEEP_MBOX                 (SCH_TASK_WAKEUP_MBOX_READY)
 #define SCH_TASK_FLAG_SLEEP_QUEUE                (SCH_TASK_WAKEUP_QUEUE_READY)
 #define SCH_TASK_FLAG_SLEEP_SEMA                 (SCH_TASK_WAKEUP_SEMA_READY)
-#define SCH_TASK_FLAG_SLEEP_FLAGS                (SCH_TASK_WAKEUP_FLAGS_CLEARED)
+#define SCH_TASK_FLAG_SLEEP_FLAGS                (SCH_TASK_WAKEUP_FLAGS_EVENT)
+#define SCH_TASK_FLAG_SLEEP_MUTEX                (SCH_TASK_WAKEUP_MUTEX_READY)
 #define SCH_TASK_FLAG_STS_CHECK                  (SCH_TASK_FLAG_STS_SLEEP | SCH_TASK_FLAG_STS_SUSPENDED) 
 #define SCH_TASK_RESOURCE_SLEEP_CHECK_MASK       (SCH_TASK_FLAG_SLEEP_MBOX | SCH_TASK_FLAG_SLEEP_QUEUE | SCH_TASK_FLAG_SLEEP_SEMA | SCH_TASK_FLAG_SLEEP_FLAGS)
 #define SCH_TOP_OF_STACK_MARK                    (0xF0F0F0F0)
@@ -85,11 +90,16 @@ extern void OSTaskFault(void);
 #define SCH_INVALID_TASK_ID                      (0xFF)
 #define SCH_BG_TASK_ID                           (0x00)
 #define SCH_NULL_PTR                             ((void*)ZERO)
+#define SCH_MAX_NUM_TICK                         (4294967200U)
 
 /*************************************************************************/
 /*  Global Variables, Constants                                          */
 /*************************************************************************/
 ListNode* Node_s_ap_mapTaskIDToTCB[SCH_MAX_NUM_TASKS];
+
+/* Note: These global variables are modified by asm routine */
+Sch_Task* tcb_g_p_currentTaskBlock;
+Sch_Task* tcb_g_p_nextTaskBlock;
 
 /*************************************************************************/
 /*  Static Global Variables, Constants                                   */
@@ -113,10 +123,6 @@ static Sch_Task   SchTask_s_as_taskList[SCH_MAX_NUM_TASKS];
 #if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
 static OS_RunTimeStats OS_s_cpuData;
 #endif
-
-/* Note: These global variables are modified by asm routine */
-Sch_Task* tcb_g_p_currentTaskBlock;
-Sch_Task* tcb_g_p_nextTaskBlock;
 
 
 /*************************************************************************/
@@ -290,6 +296,7 @@ void vd_OSsch_start(void)
 /*************************************************************************/
 void vd_OSsch_interruptEnter(void)
 {
+  OS_CPU_ENTER_CRITICAL();
 #if(RTOS_CONFIG_PRESLEEP_FUNC == RTOS_CONFIG_TRUE)
   if(u1_s_sleepState == (U1)SCH_CPU_SLEEPING)
   {  
@@ -411,7 +418,9 @@ void vd_OSsch_setNewTickPeriod(U4 numMsReload)
 /*************************************************************************/
 /*  Function Name: vd_OSsch_setReasonForWakeup                           */
 /*  Purpose:       Set reason for wakeup to resource available. Called   */
-/*                 internal to RTOS by other RTOS modules.               */
+/*                 internal to RTOS by other RTOS modules. It is expected*/
+/*                 that OS internal modules will call taskWake() *After* */
+/*                 this function call and maintain their own block lists.*/
 /*  Arguments:     U1 reason:                                            */
 /*                    Identifier code for wakeup reason.                 */
 /*                 Sch_Task* wakeupTaskTCB:                              */
@@ -419,7 +428,7 @@ void vd_OSsch_setNewTickPeriod(U4 numMsReload)
 /*                    was stored on resource blocked list.               */
 /*  Return:        void                                                  */
 /*************************************************************************/
-void vd_OSsch_setReasonForWakeup(U1 reason, Sch_Task* wakeupTaskTCB)
+void vd_OSsch_setReasonForWakeup(U1 reason, struct Sch_Task* wakeupTaskTCB)
 {
   OS_CPU_ENTER_CRITICAL();
   
@@ -452,6 +461,60 @@ void vd_OSsch_setReasonForSleep(void* taskSleepResource, U1 resourceType)
   
   /* Resume tick interrupts and enable context switch interrupt. */
   OS_CPU_EXIT_CRITICAL();
+}
+
+/*************************************************************************/
+/*  Function Name: u1_OSsch_setNewPriority                               */
+/*  Purpose:       Function to change task priority in support of        */
+/*                 priority inheritance. Internal use only. Internal     */
+/*                 module must first put task into sleep/suspended state */
+/*                 before changing its priority.                         */
+/*  Arguments:     Sch_Task* tcb:                                        */
+/*                                             */
+/*                 U1 newPriority:                                       */
+/*                                                                       */
+/*  Return:        U1: Previous priority value.                          */
+/*************************************************************************/
+U1 u1_OSsch_setNewPriority(struct Sch_Task* tcb, U1 newPriority)
+{
+  U1 u1_t_prevPrio;
+  
+  OS_CPU_ENTER_CRITICAL();
+  
+  if(tcb->flags & (U1)SCH_TASK_FLAG_STS_CHECK)
+  {
+    u1_t_prevPrio = tcb->priority;
+    tcb->priority = newPriority;
+  }
+  else
+  {
+    /* Remove node from current position. */
+    vd_list_removeNode(&node_s_p_headOfReadyList, Node_s_ap_mapTaskIDToTCB[tcb->taskID]);
+    
+    /* Change priority. */
+    u1_t_prevPrio = tcb->priority;
+    tcb->priority = newPriority;
+    
+    /* Add back into list in order. */
+    vd_list_addTaskByPrio(&node_s_p_headOfReadyList, Node_s_ap_mapTaskIDToTCB[tcb->taskID]);
+    
+    /* Is new priority higher priority than current task ? */
+    if(node_s_p_headOfReadyList->TCB != tcb_g_p_currentTaskBlock)
+    { 
+      /* Set global task pointer to new task control block */
+      tcb_g_p_nextTaskBlock = node_s_p_headOfReadyList->TCB;
+      
+      OS_CPU_TRIGGER_DISPATCHER();
+    }
+    else
+    {
+      
+    }
+  }
+  
+  OS_CPU_EXIT_CRITICAL();
+  
+  return (u1_t_prevPrio);
 }
 
 /*************************************************************************/
@@ -492,8 +555,17 @@ U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime)
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
   OS_CPU_ENTER_CRITICAL();
 
-  tcb_g_p_currentTaskBlock->sleepCntr = nextWakeTime - u4_s_tickCntr; 
-  tcb_g_p_currentTaskBlock->flags    |= (U1)SCH_TASK_FLAG_STS_SLEEP;
+  /* Handle tick roll-over. */
+  if(nextWakeTime > u4_s_tickCntr)
+  {
+    tcb_g_p_currentTaskBlock->sleepCntr = nextWakeTime - u4_s_tickCntr; 
+  }
+  else
+  {
+    tcb_g_p_currentTaskBlock->sleepCntr = ((U4)SCH_MAX_NUM_TICK - u4_s_tickCntr) + nextWakeTime;
+  }
+  
+  tcb_g_p_currentTaskBlock->flags |= (U1)SCH_TASK_FLAG_STS_SLEEP;
   
   /* Switch to an active task */
   vd_OSsch_setNextReadyTaskToRun();
@@ -508,7 +580,7 @@ U4 u4_OSsch_taskSleepSetFreq(U4 nextWakeTime)
 /*************************************************************************/
 /*  Function Name: vd_OSsch_taskWake                                     */
 /*  Purpose:       Wake specified task from sleep or suspended state.    */
-/*  Arguments:     U1 taskID:                                         */
+/*  Arguments:     U1 taskID:                                            */
 /*                    Task ID to be woken from sleep or suspend state.   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
@@ -620,10 +692,10 @@ void vd_OSsch_suspendScheduler(void)
 __irq void vd_OSsch_systemTick_ISR(void)
 {
   //GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
-  /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
-  OS_CPU_ENTER_CRITICAL();
-
-  ++u4_s_tickCntr;
+  vd_OSsch_interruptEnter();
+  
+  /* Increment ticks but cap at max (0xFFFFFFFF rounded down to nearest 100). */
+  u4_s_tickCntr = (++u4_s_tickCntr) % (U4)SCH_MAX_NUM_TICK;
   
 #if(RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
 
@@ -633,7 +705,7 @@ __irq void vd_OSsch_systemTick_ISR(void)
     OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += ((U1)SCH_ONE_HUNDRED_PERCENT - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
   }
   
-  if(!(u4_s_tickCntr % SCH_HUNDRED_TICKS))
+  if((u4_s_tickCntr % (U4)SCH_HUNDRED_TICKS) == (U4)ZERO)
   {
     OS_s_cpuData.CPUIdlePercent.CPU_idleAvg     = (U1)(OS_s_cpuData.CPUIdlePercent.CPU_idleRunning/(U4)SCH_HUNDRED_TICKS);
     OS_s_cpuData.CPUIdlePercent.CPU_idleRunning = (U1)ZERO;
@@ -702,10 +774,16 @@ static void vd_OSsch_taskSleepTimeoutHandler(Sch_Task* taskTCB)
 #endif         
 #if(RTOS_CFG_OS_FLAGS_ENABLED == RTOS_CONFIG_TRUE)            
     case (U1)SCH_TASK_FLAG_SLEEP_FLAGS:
-      vd_OSflags_pendTimeout(taskTCB->resource, taskTCB);
+      vd_OSflags_pendTimeout((FlagsObj*)taskTCB->resource, taskTCB);
       taskTCB->resource = (void*)NULL;
       break;
-#endif            
+#endif         
+#if(RTOS_CFG_OS_MUTEX_ENABLED == RTOS_CONFIG_TRUE)
+    case (U1)SCH_TASK_FLAG_SLEEP_MUTEX:
+      vd_OSmutex_blockedTimeout((Mutex*)taskTCB->resource, taskTCB);
+      taskTCB->resource = (void*)NULL;
+      break;
+#endif    
     case (U1)ZERO:
       /* Manual sleep time out */
       break;  
@@ -895,3 +973,5 @@ static U1 u1_sch_checkStack(U1 taskIndex)
 /*                                                                                             */
 /*                                Removed getCurrentTCB() and replaced with #define in         */
 /*                                sch_internal_F.h                                             */
+/*                                                                                             */
+/* 2.2                8/19/19     Fixed minor bugs in CPU load calculation.                    */
