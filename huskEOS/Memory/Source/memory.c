@@ -85,7 +85,7 @@ void v_OSMemBlockInit(U1 u1_size, U1 u1_number, U1 *pu1_err)
 	/* loop for the user's desired amount of blocks of the given size */
 	for(u1_NumMemBlocksIterator = 0; u1_NumMemBlocksIterator < u1_number; u1_NumMemBlocksIterator++)
 	{
-		if(u1_NumBlocksAllocated > RTOS_CFG_MAX_NUM_MEM_BLOCKS)
+		if(u1_NumBlocksAllocated >= RTOS_CFG_MAX_NUM_MEM_BLOCKS)
 		{
 			*pu1_err = MEM_ERR_HEAP_OUT_OF_RANGE;
 			return;
@@ -95,17 +95,18 @@ void v_OSMemBlockInit(U1 u1_size, U1 u1_number, U1 *pu1_err)
 			OS_SCH_ENTER_CRITICAL();
 			
 			/* initialize block parameters */
-			as_MemHeap[RTOS_CFG_MAX_NUM_MEM_BLOCKS].blockSize   = u1_size;
-			as_MemHeap[RTOS_CFG_MAX_NUM_MEM_BLOCKS].blockStatus = BLOCK_NOT_IN_USE;
-			as_MemHeap[RTOS_CFG_MAX_NUM_MEM_BLOCKS].start       = (U1*) malloc(u1_SizeWithWatermark * sizeof(U1));
+			as_MemHeap[u1_NumBlocksAllocated].blockSize   = u1_size;
+			as_MemHeap[u1_NumBlocksAllocated].blockStatus = BLOCK_NOT_IN_USE;
+			as_MemHeap[u1_NumBlocksAllocated].start       = (U1*) malloc(u1_SizeWithWatermark * sizeof(U1));
 			
 			/* assign the last four bytes of the block to the watermarked value */
 			for(u1_WatermarkSizeIterator = 0; u1_WatermarkSizeIterator < MEM_U4_WATERMARK_SIZE; u1_WatermarkSizeIterator++)
 			{
-				as_MemHeap[RTOS_CFG_MAX_NUM_MEM_BLOCKS].start[u1_size + u1_WatermarkSizeIterator] = MEM_WATERMARK_VAL;
+				as_MemHeap[u1_NumBlocksAllocated].start[u1_size + u1_WatermarkSizeIterator] = MEM_WATERMARK_VAL;
 			}
 			++u1_NumBlocksAllocated;
 			
+			/* set the global block size parameter */
 			if(u1_LargestBlockSize < u1_size)
 			{
 				u1_LargestBlockSize = u1_size;
@@ -142,7 +143,8 @@ U1* pu1_OSMalloc(U1 u1_size, U1* pu1_err)
 		/* check for block availability*/
 		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_NOT_IN_USE)
 		{
-			
+			/* enter a critical section here to make sure no other process or */
+			/* interrupt claims this block at the same time                   */
 			OS_SCH_ENTER_CRITICAL();
 			
 			/* check to make sure the block is the proper size */
@@ -157,8 +159,6 @@ U1* pu1_OSMalloc(U1 u1_size, U1* pu1_err)
 				*pu1_err = MEM_NO_ERROR;
 				return as_MemHeap[u1_HeapIndex].start;
 			}
-			
-	    /* elses for standard compliance */
 			else
 			{
 				OS_SCH_EXIT_CRITICAL();
@@ -198,7 +198,8 @@ U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err)
 		/* check for block availability*/
 		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_NOT_IN_USE)
 		{
-			
+			/* enter a critical section here to make sure no other process or */
+			/* interrupt claims this block at the same time                   */
 			OS_SCH_ENTER_CRITICAL();
 			
 			/* check to make sure the block is the proper size */
@@ -245,39 +246,32 @@ U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err)
 /*                     Pointer variable for error code.                  */
 /*  Return:        void                                                  */
 /*************************************************************************/
-void v_OSFree(U1* pu1_BlockStart, U1* pu1_err)
+void v_OSFree(U1** pu1_BlockStart, U1* pu1_err)
 {
-	U1 u1_HeapIndex = 0;
-	U1 u1_FoundFlag = 0;
+	U1 u1_HeapIndex  = 0;
+	U1 u1_LocalError = 0;
+	U1 u1_BlockIndex = 0;
 	
-	/* find the memory block with the matching start pointer */
-	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
+	u1_BlockIndex = u1_FindHeapIndex(*pu1_BlockStart, &u1_LocalError);
+	
+	if(u1_LocalError == MEM_NO_ERROR)
 	{
-		if(as_MemHeap[u1_HeapIndex].start == pu1_BlockStart)
-		{
-			
-			OS_SCH_ENTER_CRITICAL();
-			
-			/* free the memory block by clearing its block status */
-			as_MemHeap[u1_HeapIndex].blockStatus = BLOCK_NOT_IN_USE;
+		OS_SCH_ENTER_CRITICAL();
 		
-			OS_SCH_EXIT_CRITICAL();
-			
-			pu1_BlockStart = NULL;
-			u1_FoundFlag = 1;
-		}
-		else
-		{
-			continue;
-		}
-	}
-	if(!u1_FoundFlag)
-	{
-		*pu1_err = MEM_ERR_BLOCK_NOT_FOUND;
+		/* free the memory block by clearing its block status */
+		as_MemHeap[u1_BlockIndex].blockStatus = BLOCK_NOT_IN_USE;
+	
+		OS_SCH_EXIT_CRITICAL();
+		
+		/* destroy the pointer and set the relevant error codes */
+		*pu1_BlockStart = NULL;
+		*pu1_err = MEM_NO_ERROR;
+		return;
 	}
 	else
 	{
-		*pu1_err = MEM_NO_ERROR;
+		*pu1_err = MEM_ERR_BLOCK_NOT_FOUND;
+		return;
 	}
 }
 
@@ -285,16 +279,13 @@ void v_OSFree(U1* pu1_BlockStart, U1* pu1_err)
 /*************************************************************************/
 /*  Function Name: pu1_OSRealloc                                         */
 /*  Purpose:       Free the current block and re-allocate a new block.   */
-/*  Arguments:     OSMemBlock* ps_memBlock:                              */
-/*                     Memory block to reallocate.                       */
-/*                 U1* u1_newSize:                                       */
-/*                     Desired new size of the memblock.                 */
+/*  Arguments:     U1** pu1_OldPointer:                                  */
+/*                      Pointer to memory to reallocate.                 */
+/*                 U1   u1_newSize:                                      */
+/*                      Desired new size of the memblock.                */
+/*                 U1*  pu1_err:                                         */
+/*                      Pointer variable for error code.                 */
 /*  Return:        U1*                                                   */
-/*  Notes:         Debated on storing the index of the memory block      */ 
-/*                 somewhere, perhaps in the block structure itself. Was */
-/*                 hard to return both the array pointer and the index   */
-/*                 at the same time, while keeping the functions         */
-/*                 std-like. Possible future implementation?             */
 /*************************************************************************/
 U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 {
@@ -306,7 +297,7 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 	if(u1_NewSize == 0)
 	{
 		/* free the old pointer and check for error */
-		v_OSFree(pu1_OldPointer, &u1_LocalError);
+		v_OSFree(&pu1_OldPointer, &u1_LocalError);
 		if(u1_LocalError == MEM_NO_ERROR)
 		{
 			*pu1_err = MEM_NO_ERROR;
@@ -330,7 +321,7 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 	/* case new size is valid */
 	else
 	{
-		/* first we try to reallocate a new memory block */
+		/* first we try to allocate a new memory block */
 		U1* pu1_NewPointer = pu1_OSMalloc(u1_NewSize, &u1_LocalError);
 		
 		/* next make sure there are no error codes */
@@ -339,7 +330,7 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 		{
 			/* begin transfer of memory from old block to new block */
 			/* find index of old memory block */
-			u1_OldBlockIndex = u1_FindHeapIndex(pu1_OldPointer, &u1_LocalError);
+			u1_OldBlockIndex = u1_FindHeapIndex(*pu1_OldPointer, &u1_LocalError);
 			
 			/* compare new size and old size, determine which is bigger */
 			if(u1_LocalError == MEM_NO_ERROR)
@@ -357,7 +348,7 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 					
 					OS_SCH_EXIT_CRITICAL();
 					/* free the old pointer, set a warning, and return the new pointer */
-					v_OSFree(pu1_OldPointer, &u1_LocalError);
+					v_OSFree(&pu1_OldPointer, &u1_LocalError);
 					*pu1_err = MEM_WARN_REALLOC_SMALLER_BLOCK;
 					return pu1_NewPointer;
 				}
@@ -375,7 +366,7 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 					OS_SCH_EXIT_CRITICAL();
 					
 					/* free the old pointer, set an error if any, and return the new pointer */
-					v_OSFree(pu1_OldPointer, &u1_LocalError);
+					v_OSFree(&pu1_OldPointer, &u1_LocalError);
 					*pu1_err = u1_LocalError;
 					return pu1_NewPointer;
 				}									
@@ -392,10 +383,41 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 }
 
 
-
-void v_MemMaintenance()
+/*************************************************************************/
+/*  Function Name: u1_MemMaintenance                                     */
+/*  Purpose:       Check the status of all the memblocks to ensure that  */
+/*                 the user hasn't overwritten any of the watermarks.    */
+/*  Arguments:     None.                                                 */
+/*  Return:        MEM_MAINT_NO_ERROR (0) or                             */
+/*                 MEM_MAINT_ERROR    (1)                                */
+/*************************************************************************/
+U1 u1_MemMaintenance()
 {
-	// to do: write this function !!
+	/* local variables */
+	U1 u1_HeapIndex        = 0;
+	U1 u1_WatermarkIndex   = 0;
+	U1 u1_CurrentBlockSize = 0;
+	
+	/* iterate through the heap */
+	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
+	{
+		u1_CurrentBlockSize = as_MemHeap[u1_HeapIndex].blockSize;
+		
+		/* iterate through the trailing watermarks at the end of the memory block*/
+		for(u1_WatermarkIndex = u1_CurrentBlockSize; u1_WatermarkIndex < MEM_U4_WATERMARK_SIZE; u1_WatermarkIndex++)
+		{
+			/* each watermark should be 0xF0 */
+			if(as_MemHeap[u1_HeapIndex].start[u1_WatermarkIndex] != MEM_WATERMARK_VAL)
+			{
+				return MEM_MAINT_ERROR; 
+			}
+			else
+			{
+				continue;
+			}
+		}
+	}
+	return MEM_MAINT_NO_ERROR;
 }
 
 /******************************* end file ********************************/

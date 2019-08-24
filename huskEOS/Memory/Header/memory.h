@@ -22,7 +22,11 @@
 #define MEM_ERR_HEAP_OUT_OF_RANGE        (255) // the user attempted to add more blocks than the maximum number of blocks
 
 /* API Warning Codes */
-#define MEM_WARN_REALLOC_SMALLER_BLOCK   (100) // 
+#define MEM_WARN_REALLOC_SMALLER_BLOCK   (100) // warning set when the user reallocates a smaller block (could cause data loss)
+
+/* Maintenance Warning Codes */
+#define MEM_MAINT_NO_ERROR               (0)
+#define MEM_MAINT_ERROR                  (1)
 
 
 /*************************************************************************/
