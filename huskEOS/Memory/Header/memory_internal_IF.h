@@ -6,9 +6,11 @@
 /*  All rights reserved.                                                 */
 /*************************************************************************/
 
+#ifndef memory_internal_IF_h
+#define memory_internal_IF_h
+
 #include "cpu_defs.h"
 #include "rtos_cfg.h"
-#include "semaphore.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
@@ -24,19 +26,25 @@
 //struct OSMemBlock;
 
 /* Low level memory "block" */
-typedef struct OSMemBlock
+typedef struct Block
 {
 	U1 *start;
 	U1 blockStatus;
 	U1 blockSize;
-}OSMemBlock;
+}
+Block;
 
 /*************************************************************************/
 /*  Public Functions                                                     */
 /*************************************************************************/
 
-
-
 /*************************************************************************/
 /*  Global Variables                                                     */
 /*************************************************************************/
+static U1         u1_NumBlocksAllocated = 0;
+static U1         u1_LargestBlockSize   = 0;
+
+#endif
+
+
+/******************************* end file ********************************/

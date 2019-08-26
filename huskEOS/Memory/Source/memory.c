@@ -24,42 +24,17 @@
 /*  Global Variables, Constants                                          */
 /*************************************************************************/
 static OSMemBlock as_MemHeap[RTOS_CFG_MAX_NUM_MEM_BLOCKS];
-static U1         u1_NumBlocksAllocated = 0;
-static U1         u1_LargestBlockSize   = 0;
-
 
 /*************************************************************************/
-/*  Function Name: u1_FindHeapIndex                                      */
-/*  Purpose:       Find the index of the memory block with the same      */
-/*                 passed in start pointer.                              */
-/*  Arguments:     U1* pu1_BlockStart:                                   */
-/*                     Pointer to find in the heap.                      */
-/*                 U1* pu1_err:                                          */
-/*                     Pointer variable for error code.                  */
-/*  Return:        U1                                                    */
+/*  Private Function Prototypes                                          */
 /*************************************************************************/
-U1 u1_FindHeapIndex(U1* pu1_BlockStart, U1* pu1_err)
-{
-	U1 u1_HeapIndex = 0;
-	
-	/* loop through the structure and find the index */
-	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
-	{
-		/* return the current index if the pointers match */
-		if(as_MemHeap[u1_HeapIndex].start == pu1_BlockStart)
-		{
-			*pu1_err = MEM_NO_ERROR;
-			return u1_HeapIndex;
-		}
-		else
-		{
-			continue;
-		}
-	}
-	/* otherwise, set an error code and return 255 */
-	*pu1_err = MEM_ERR_BLOCK_NOT_FOUND;
-	return 255;
-}
+
+U1 u1_MemMaintenance();
+U1 u1_FindHeapIndex(U1* pu1_BlockStart, U1* pu1_err);
+
+/*************************************************************************/
+/*  Public Functions                                                     */
+/*************************************************************************/
 
 /*************************************************************************/
 /*  Function Name: v_OSMemBlockInit                                      */
@@ -140,13 +115,13 @@ U1* pu1_OSMalloc(U1 u1_size, U1* pu1_err)
 	/* loop for the length of the memory heap */
 	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
 	{
+		/* enter a critical section here to make sure no other process or */
+		/* interrupt claims this block at the same time                   */
+		OS_SCH_ENTER_CRITICAL();
+		
 		/* check for block availability*/
 		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_NOT_IN_USE)
 		{
-			/* enter a critical section here to make sure no other process or */
-			/* interrupt claims this block at the same time                   */
-			OS_SCH_ENTER_CRITICAL();
-			
 			/* check to make sure the block is the proper size */
 			if(as_MemHeap[u1_HeapIndex].blockSize >= u1_size)
 			{
@@ -167,6 +142,7 @@ U1* pu1_OSMalloc(U1 u1_size, U1* pu1_err)
 		}
 		else
 		{
+			OS_SCH_EXIT_CRITICAL();
 			continue;
 		}
 	}
@@ -195,13 +171,13 @@ U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err)
 	/* loop for the length of the memory heap */
 	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
 	{
+		/* enter a critical section here to make sure no other process or */
+		/* interrupt claims this block at the same time                   */
+		OS_SCH_ENTER_CRITICAL();
+		
 		/* check for block availability*/
 		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_NOT_IN_USE)
 		{
-			/* enter a critical section here to make sure no other process or */
-			/* interrupt claims this block at the same time                   */
-			OS_SCH_ENTER_CRITICAL();
-			
 			/* check to make sure the block is the proper size */
 			if(as_MemHeap[u1_HeapIndex].blockSize >= u1_size)
 			{
@@ -230,6 +206,7 @@ U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err)
 		}
 		else
 		{
+			OS_SCH_EXIT_CRITICAL();
 			continue;
 		}
 	}
@@ -240,10 +217,10 @@ U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err)
 /*************************************************************************/
 /*  Function Name: v_OSFree                                              */
 /*  Purpose:       Destroy the passed-in pointer and free the memblock.  */
-/*  Arguments:     U1* pu1_BlockStart:                                   */
-/*                     Pointer to the memory contained in the memblock.  */
-/*                 U1* pu1_err:                                          */
-/*                     Pointer variable for error code.                  */
+/*  Arguments:     U1** pu1_BlockStart:                                  */
+/*                      Pointer to the memory contained in the memblock. */
+/*                 U1*  pu1_err:                                         */
+/*                      Pointer variable for error code.                 */
 /*  Return:        void                                                  */
 /*************************************************************************/
 void v_OSFree(U1** pu1_BlockStart, U1* pu1_err)
@@ -252,6 +229,7 @@ void v_OSFree(U1** pu1_BlockStart, U1* pu1_err)
 	U1 u1_LocalError = 0;
 	U1 u1_BlockIndex = 0;
 	
+	/* find the block currently in use by the heap */
 	u1_BlockIndex = u1_FindHeapIndex(*pu1_BlockStart, &u1_LocalError);
 	
 	if(u1_LocalError == MEM_NO_ERROR)
@@ -330,7 +308,7 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 		{
 			/* begin transfer of memory from old block to new block */
 			/* find index of old memory block */
-			u1_OldBlockIndex = u1_FindHeapIndex(*pu1_OldPointer, &u1_LocalError);
+			u1_OldBlockIndex = u1_FindHeapIndex(pu1_OldPointer, &u1_LocalError);
 			
 			/* compare new size and old size, determine which is bigger */
 			if(u1_LocalError == MEM_NO_ERROR)
@@ -380,8 +358,53 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 			return pu1_OldPointer;
 		}
 	}
+	*pu1_err = MEM_ERR_REALLOC_GEN_FAULT;
+	return pu1_OldPointer;
 }
 
+/*************************************************************************/
+/*  Private Functions                                                    */
+/*************************************************************************/
+
+/*************************************************************************/
+/*  Function Name: u1_FindHeapIndex                                      */
+/*  Purpose:       Find the index of the memory block with the same      */
+/*                 passed in start pointer.                              */
+/*  Arguments:     U1* pu1_BlockStart:                                   */
+/*                     Pointer to find in the heap.                      */
+/*                 U1* pu1_err:                                          */
+/*                     Pointer variable for error code.                  */
+/*  Return:        U1                                                    */
+/*************************************************************************/
+U1 u1_FindHeapIndex(U1* pu1_BlockStart, U1* pu1_err)
+{
+	U1 u1_HeapIndex = 0;
+	
+	/* loop through the structure and find the index */
+	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
+	{
+		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_IN_USE)
+		{
+			/* return the current index if the pointers match */
+			if(as_MemHeap[u1_HeapIndex].start == pu1_BlockStart)
+			{
+				*pu1_err = MEM_NO_ERROR;
+				return u1_HeapIndex;
+			}
+			else
+			{
+				continue;
+			}
+		}
+		else
+		{
+			continue;
+		}
+	}
+	/* otherwise, set an error code and return 255 */
+	*pu1_err = MEM_ERR_BLOCK_NOT_FOUND;
+	return 255;
+}
 
 /*************************************************************************/
 /*  Function Name: u1_MemMaintenance                                     */

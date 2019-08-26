@@ -59,7 +59,8 @@
 #define RTOS_CFG_MAX_NUM_BLOCKED_TASKS_MUTEX        (2)                   /* Number of tasks that can block on each mutex. */
 
 /* Memory */
-#define RTOS_CFG_MAX_NUM_MEM_BLOCKS                 (16)
+#define RTOS_CFG_OS_MEM_ENABLED                     (RTOS_CONFIG_TRUE)
+#define RTOS_CFG_MAX_NUM_MEM_BLOCKS                 (16)                  /* Number of memory blocks available in run-time. */
 
 /* I/O */
 #define PART_TM4C123GH6PM 1
