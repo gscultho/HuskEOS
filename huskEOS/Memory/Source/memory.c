@@ -377,7 +377,7 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 		else
 		{
 			*pu1_err = MEM_ERR_REALLOC_NO_BLOCKS_AVAIL;
-			return NULL;
+			return pu1_OldPointer;
 		}
 	}
 }
