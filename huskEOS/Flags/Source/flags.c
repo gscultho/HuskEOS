@@ -2,10 +2,14 @@
 /*  File Name: flags.c                                                   */
 /*  Purpose: Flags services for application layer tasks.                 */
 /*  Created by: Garrett Sculthorpe on 3/24/19.                           */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
-   
+#include "rtos_cfg.h"
+
+#if(RTOS_CFG_OS_FLAGS_ENABLED == RTOS_CONFIG_TRUE)
+
 /*************************************************************************/
 /*  Includes                                                             */
 /*************************************************************************/
@@ -42,14 +46,14 @@ static FlagsObj flags_s_flagsList[RTOS_CFG_NUM_FLAG_OBJECTS];
 /*************************************************************************/
 /*  Function Name: u1_OSflags_init                                       */
 /*  Purpose:       Initialize flags object.                              */
-/*  Arguments:     FlagsObj** flags:                                     */
+/*  Arguments:     OSFlagsObj** flags:                                   */
 /*                        Address of flags object.                       */
 /*                 U1 flagInitValues:                                    */
 /*                        Initial values for flags.                      */
 /*  Return:        U1: FLAGS_NO_OBJ_AVAILABLE     OR                     */
 /*                     FLAGS_INIT_SUCCESS                                */
 /*************************************************************************/
-U1 u1_OSflags_init(struct FlagsObj** flags, U1 flagInitValues)
+U1 u1_OSflags_init(OSFlagsObj** flags, U1 flagInitValues)
 {
          U1 u1_t_index;
          U1 u1_t_returnSts;
@@ -90,7 +94,7 @@ U1 u1_OSflags_init(struct FlagsObj** flags, U1 flagInitValues)
 /*************************************************************************/
 /*  Function Name: u1_OSflags_postFlags                                  */
 /*  Purpose:       Write to flags object as specified.                   */
-/*  Arguments:     FlagsObj* flags:                                      */
+/*  Arguments:     OSFlagsObj* flags:                                    */
 /*                    Pointer to flags object.                           */
 /*                 U1 flagMask:                                          */
 /*                    Mask to set/clear.                                 */
@@ -100,7 +104,7 @@ U1 u1_OSflags_init(struct FlagsObj** flags, U1 flagInitValues)
 /*  Return:        U4 FLAGS_WRITE_COMMAND_INVALID     OR                 */
 /*                    FLAGS_WRITE_SUCCESS                                */
 /*************************************************************************/
-U1 u1_OSflags_postFlags(struct FlagsObj* flags, U1 flagMask, U1 set_clear)
+U1 u1_OSflags_postFlags(OSFlagsObj* flags, U1 flagMask, U1 set_clear)
 {
   U1 u1_t_returnSts;
   U1 u1_t_index;
@@ -135,12 +139,12 @@ U1 u1_OSflags_postFlags(struct FlagsObj* flags, U1 flagMask, U1 set_clear)
           case (U1)FLAGS_EVENT_ANY:          
             if((flags->pendingList[u1_t_index].event & flags->flags) != (U1)ZERO)
             {
-              /* Wake up task and notify scheduler of reason. */
-              vd_OSsch_setReasonForWakeup((U1)(flags->flags), (flags->pendingList[u1_t_index].tcb));
-              
               /* Notify scheduler to change task state. If woken task is higher priority than running task, context switch will occur after critical section. */
               vd_OSsch_taskWake(flags->pendingList[u1_t_index].tcb->taskID);
               
+              /* Wake up task and notify scheduler of reason. */
+              vd_OSsch_setReasonForWakeup((U1)(flags->flags), (flags->pendingList[u1_t_index].tcb));
+                            
               /* Clear data in flags object. */
               flags->pendingList[u1_t_index].event         = (U1)ZERO;
               flags->pendingList[u1_t_index].tcb           = FLAGS_NULL_PTR;
@@ -160,7 +164,7 @@ U1 u1_OSflags_postFlags(struct FlagsObj* flags, U1 flagMask, U1 set_clear)
               
               /* Notify scheduler to change task state. If woken task is higher priority than running task, context switch will occur after critical section. */
               vd_OSsch_taskWake(flags->pendingList[u1_t_index].tcb->taskID);
-              
+                            
               /* Clear data in flags object. */
               flags->pendingList[u1_t_index].event         = (U1)ZERO;
               flags->pendingList[u1_t_index].tcb           = FLAGS_NULL_PTR;
@@ -200,7 +204,7 @@ U1 u1_OSflags_postFlags(struct FlagsObj* flags, U1 flagMask, U1 set_clear)
 /*                 it can retrieve the waking event by calling           */
 /*                 u1_OSsch_getReasonForWakeup()                         */
 /*                                                                       */
-/*  Arguments:     FlagsObj* flags:                                      */
+/*  Arguments:     OSFlagsObj* flags:                                    */
 /*                      Pointer to flags object.                         */
 /*                 U1 eventMask:                                         */
 /*                      Event that will cause wakeup.                    */
@@ -213,7 +217,7 @@ U1 u1_OSflags_postFlags(struct FlagsObj* flags, U1 flagMask, U1 set_clear)
 /*  Return:        U1: FLAGS_PEND_LIST_FULL     OR                       */
 /*                     FLAGS_PEND_SUCCESS                                */
 /*************************************************************************/
-U1 u1_OSflags_pendOnFlags(struct FlagsObj* flags, U1 eventMask, U4 timeOut, U1 eventType) 
+U1 u1_OSflags_pendOnFlags(OSFlagsObj* flags, U1 eventMask, U4 timeOut, U1 eventType) 
 {
   U1 u1_t_returnSts;
   U1 u1_t_index;
@@ -269,7 +273,7 @@ U1 u1_OSflags_pendOnFlags(struct FlagsObj* flags, U1 eventMask, U4 timeOut, U1 e
 }
 
 /*************************************************************************/
-/*  Function Name: vd_flags_pendTimeout                                  */
+/*  Function Name: vd_OSflags_pendTimeout                                */
 /*  Purpose:       Timeout hander for pending task. Called by scheduler. */
 /*  Arguments:     FlagsObj* flags:                                      */
 /*                      Pointer to flags object.                         */
@@ -277,7 +281,7 @@ U1 u1_OSflags_pendOnFlags(struct FlagsObj* flags, U1 eventMask, U4 timeOut, U1 e
 /*                      Pointer to timed out task's TCB.                 */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_flags_pendTimeout(struct FlagsObj* flags, struct Sch_Task* pendingTCB)
+void vd_OSflags_pendTimeout(FlagsObj* flags, struct Sch_Task* pendingTCB)
 {
   U1 u1_t_index;
   
@@ -304,11 +308,11 @@ void vd_flags_pendTimeout(struct FlagsObj* flags, struct Sch_Task* pendingTCB)
 /*************************************************************************/
 /*  Function Name: vd_OSflags_reset                                      */
 /*  Purpose:       Reset flags object to init state.                     */
-/*  Arguments:     Flags* flags:                                         */
+/*  Arguments:     OSFlagsObj* flags:                                    */
 /*                     Pointer to flags object.                          */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void  vd_OSflags_reset(struct FlagsObj* flags)
+void vd_OSflags_reset(OSFlagsObj* flags)
 {
   U1 u1_t_index;
   
@@ -321,8 +325,8 @@ void  vd_OSflags_reset(struct FlagsObj* flags)
   {
     if(flags->pendingList[u1_t_index].tcb != FLAGS_NULL_PTR)
     {
-      vd_OSsch_setReasonForWakeup((U1)SCH_TASK_WAKEUP_FLAGS_CLEARED, (flags->pendingList[u1_t_index].tcb));
       vd_OSsch_taskWake(flags->pendingList[u1_t_index].tcb->taskID);
+      vd_OSsch_setReasonForWakeup((U1)SCH_TASK_WAKEUP_FLAGS_EVENT, (flags->pendingList[u1_t_index].tcb));
       
       flags->pendingList[u1_t_index].tcb           = FLAGS_NULL_PTR;
       flags->pendingList[u1_t_index].event         = (U1)ZERO;
@@ -340,11 +344,11 @@ void  vd_OSflags_reset(struct FlagsObj* flags)
 /*************************************************************************/
 /*  Function Name: vd_OSflags_clearAll                                   */
 /*  Purpose:       Clear all flags.                                      */
-/*  Arguments:     Flags* flags:                                         */
+/*  Arguments:     OSFlagsObj* flags:                                    */
 /*                     Pointer to flags object.                          */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void  vd_OSflags_clearAll(struct FlagsObj* flags)
+void vd_OSflags_clearAll(OSFlagsObj* flags)
 {  
   OS_CPU_ENTER_CRITICAL();
   
@@ -356,12 +360,12 @@ void  vd_OSflags_clearAll(struct FlagsObj* flags)
 /*************************************************************************/
 /*  Function Name: u1_flags_checkFlags                                   */
 /*  Purpose:       Check flags but do not modify.                        */
-/*  Arguments:     Flags* flags:                                         */
+/*  Arguments:     OSFlagsObj* flags:                                    */
 /*                     Pointer to flags object.                          */
 /*  Return:        U1 u1_t_returnVal:                                    */
 /*                    Value of flags at time they were read.             */
 /*************************************************************************/
-U1 u1_OSflags_checkFlags(struct FlagsObj* flags)
+U1 u1_OSflags_checkFlags(OSFlagsObj* flags)
 {
   U1 u1_t_returnVal;
   
@@ -373,6 +377,8 @@ U1 u1_OSflags_checkFlags(struct FlagsObj* flags)
   
   return (u1_t_returnVal);
 }
+
+#endif /* Conditional compile */
 
 /***********************************************************************************************/
 /* History                                                                                     */
