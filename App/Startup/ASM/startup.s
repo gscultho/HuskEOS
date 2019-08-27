@@ -265,9 +265,15 @@ Reset_Handler
         ; the .data section initializers from flash to SRAM and zero fill the
         ; .bss section.
         ;
-        IMPORT  main
-        B       main
+        IMPORT main
+        IMPORT __main
+        
+        LDR R0, =__main
+        BX     R0
+        B      main
 
+                    
+                    
 ;******************************************************************************
 ;
 ; This is the code that gets called when the processor receives a NMI.  This
