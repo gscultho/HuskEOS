@@ -2,13 +2,13 @@
 /*  File Name:  flags_internal_IF.h                                      */
 /*  Purpose:    Kernel access definitions and routines for flags.        */
 /*  Created by: Garrett Sculthorpe on 5/20/19                            */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef flags_internal_IF_h 
 #define flags_internal_IF_h
 
-#include "cpu_defs.h"
 #include "rtos_cfg.h"
 
 /*************************************************************************/
@@ -24,16 +24,16 @@ struct Sch_Task; /* Forward declaration. See definition in sch_internal_IF.h */
 
 typedef struct TasksPending
 {
-  U1               event;
-  struct Sch_Task* tcb;
-  U1               eventPendType;
+  U1               event;            /* Event that task is pending on. */
+  struct Sch_Task* tcb;              /* Pointer to pending task TCB. */
+  U1               eventPendType;    /* Type of pend (exact match or just one flag set). */
 }
 TasksPending;
 
 typedef struct FlagsObj
 {
-  U1            flags;
-  TasksPending  pendingList[FLAGS_MAX_NUM_TASKS_PENDING];
+  U1            flags;                                       /* Object containing 8 flags. */
+  TasksPending  pendingList[FLAGS_MAX_NUM_TASKS_PENDING];    /* Memory allocated for storing pending task info. */
 }
 FlagsObj;
 
@@ -42,7 +42,7 @@ FlagsObj;
 /*  Public Functions                                                     */
 /*************************************************************************/
 /*************************************************************************/
-/*  Function Name: vd_flags_pendTimeout                                  */
+/*  Function Name: vd_OSflags_pendTimeout                                */
 /*  Purpose:       Timeout hander for pending task. Called by scheduler. */
 /*  Arguments:     FlagsObj* flags:                                      */
 /*                      Pointer to flags object.                         */
@@ -50,7 +50,7 @@ FlagsObj;
 /*                      Pointer to timed out task's TCB.                 */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_flags_pendTimeout(struct FlagsObj* flags, struct Sch_Task* pendingTCB);
+void vd_OSflags_pendTimeout(struct FlagsObj* flags, struct Sch_Task* pendingTCB);
 
 
 /*************************************************************************/
