@@ -2,10 +2,11 @@
 /*  File Name:  cpu_defs.h                                               */
 /*  Purpose:    Definitions for OS hardware use.                         */
 /*  Created by: Garrett Sculthorpe on 2/10/2019.                         */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
-#ifndef cpu_defs_h /* Protection from declaring more than once */
+#ifndef cpu_defs_h 
 #define cpu_defs_h
 
 /*************************************************************************/
@@ -34,10 +35,12 @@ typedef signed long    S8;
 #define STACK_GROWTH                  (STACK_DESCENDING)
 
 /* General */
+#define TWO                           (2)
 #define ONE                           (1)
 #define ZERO                          (0)
 #define TEN                           (10)
 #define NULL                          (0)
+#define MAX_VAL_4BYTE                 ((U4)0xFFFFFFFF)
 
 /* Registers used by OS */
 #define SYS_REG_ICSR_ADDR             (*((volatile U4 *)0xE000ED04))
@@ -59,4 +62,4 @@ typedef signed long    S8;
 /*************************************************************************/
 
 
-#endif /* End conditional declaration for cpu_defs_h */
+#endif 
