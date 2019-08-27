@@ -424,10 +424,10 @@ U1 u1_MemMaintenance()
 	/* iterate through the heap */
 	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
 	{
-		u1_CurrentBlockSize = as_MemHeap[u1_HeapIndex].blockSize;
+		u1_CurrentBlockSize = as_MemHeap[u1_HeapIndex].blockSize + MEM_U4_WATERMARK_SIZE;
 		
 		/* iterate through the trailing watermarks at the end of the memory block*/
-		for(u1_WatermarkIndex = u1_CurrentBlockSize; u1_WatermarkIndex < MEM_U4_WATERMARK_SIZE; u1_WatermarkIndex++)
+		for(u1_WatermarkIndex = u1_CurrentBlockSize; u1_WatermarkIndex < u1_CurrentBlockSize; u1_WatermarkIndex++)
 		{
 			/* each watermark should be 0xF0 */
 			if(as_MemHeap[u1_HeapIndex].start[u1_WatermarkIndex] != MEM_WATERMARK_VAL)
