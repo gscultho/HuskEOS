@@ -3,7 +3,7 @@
 /*  Purpose:    Header file for mutex module.                            */
 /*  Created by: Garrett Sculthorpe on 3/3/19                             */
 /*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
-/*  All rights reserved.                                                 */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef mutex_h 
@@ -17,7 +17,7 @@
 #define MUTEX_SUCCESS              (1)
 #define MUTEX_TAKEN                (0)  
 #define MUTEX_NO_OBJECTS_AVAILABLE (0)
-#define MUTEX_ALREADY_RELEASED     (0)
+#define MUTEX_NOT_HELD_BY_TASK     (0)
 
 /*************************************************************************/
 /*  Data Types                                                           */
@@ -63,13 +63,12 @@ U1 u1_OSmutex_lock(OSMutex* mutex, U4 blockPeriod);
 U1 u1_OSmutex_check(OSMutex* mutex);
 
 /*************************************************************************/
-/*  Function Name: vd_OSmutex_blockedTimeout                             */
-/*  Purpose:       API for scheduler to call when sleeping task times out*/
-/*  Arguments:     Mutex* mutex:                                         */
+/*  Function Name: u1_OSmutex_unlock                                     */
+/*  Purpose:       Release mutex and manage priority inheritance.        */
+/*  Arguments:     OSMutex* mutex:                                       */
 /*                     Pointer to mutex.                                 */
-/*                 Sch_Task* taskTCB:                                    */
-/*                     Pointer to TCB of blocked task.                   */
-/*  Return:        N/A                                                   */
+/*  Return:        U1: MUTEX_SUCCESS          OR                         */
+/*                     MUTEX_ALREADY_RELEASED                            */
 /*************************************************************************/
 U1 u1_OSmutex_unlock(OSMutex* mutex);
 
