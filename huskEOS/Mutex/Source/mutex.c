@@ -3,7 +3,7 @@
 /*  Purpose: Mutex services for application layer tasks.                 */
 /*  Created by: Garrett Sculthorpe on 8/14/19.                           */
 /*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
-/*  All rights reserved.                                                 */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #include "rtos_cfg.h"
@@ -226,7 +226,7 @@ U1 u1_OSmutex_unlock(OSMutex* mutex)
   }
   else
   {
-    u1_t_return = (U1)MUTEX_ALREADY_RELEASED;
+    u1_t_return = (U1)MUTEX_NOT_HELD_BY_TASK;
   }
   
   OS_SCH_EXIT_CRITICAL();
