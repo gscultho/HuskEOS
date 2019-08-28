@@ -2,8 +2,8 @@
 /*  File Name:  mutex_internal_IF.h                                      */
 /*  Purpose:    Kernel access definitions and routines for mutex.        */
 /*  Created by: Garrett Sculthorpe on 5/23/19                            */
-/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
-/*  All rights reserved.                                                 */
+/*  Copyright Â© 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef mutex_internal_IF_h 
@@ -26,31 +26,40 @@ struct Sch_Task; /* Forward declaration. Defined in sch_internal_IF.h" */
 /* Handle task blocking on each mutex. */
 typedef struct BlockedTasks
 {
-  struct ListNode  blockedTasks[MUTEX_MAX_NUM_BLOCKED];
-  struct ListNode* blockedListHead;
+  struct ListNode  blockedTasks[MUTEX_MAX_NUM_BLOCKED];          /* Memory allocated for storing blocked task data. */
+  struct ListNode* blockedListHead;                              /* Pointer to first blocked task in list (highest priority. */
 }
 BlockedTasks;
 
 /* Priority management. */
 typedef struct PrioInheritance
 {
-  U1               taskRealPrio;
-  U1               taskInheritedPrio;
-  struct Sch_Task* mutexHolder;
+  U1               taskRealPrio;             /* Real priority of task holding mutex. */
+  U1               taskInheritedPrio;        /* Inherited priority of task holding mutex. */
+  struct Sch_Task* mutexHolder;              /* Pointer to task holding the mutex. */
 }
 PrioInheritance;
 
 typedef struct Mutex
 {
-  U1              lock;
-  BlockedTasks    blockedTaskList;
-  PrioInheritance priority;
+  U1              lock;                      /* Binary lock value (1 is available). */
+  BlockedTasks    blockedTaskList;           /* Group for handling blocked tasks. */
+  PrioInheritance priority;                  /* Group for handling priority inheritance. */
 }
 Mutex;
 
 
 /*************************************************************************/
 /*  Public Functions                                                     */
+/*************************************************************************/
+/*************************************************************************/
+/*  Function Name: vd_OSmutex_blockedTimeout                             */
+/*  Purpose:       API for scheduler to call when sleeping task times out*/
+/*  Arguments:     Mutex* mutex:                                         */
+/*                     Pointer to mutex.                                 */
+/*                 Sch_Task* taskTCB:                                    */
+/*                     Pointer to TCB of blocked task.                   */
+/*  Return:        N/A                                                   */
 /*************************************************************************/
 void vd_OSmutex_blockedTimeout(struct Mutex* mutex, struct Sch_Task* taskTCB);
 
