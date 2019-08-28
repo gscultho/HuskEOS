@@ -2,7 +2,8 @@
 /*  File Name:  queue.h                                                  */
 /*  Purpose:    Main header file for queue module.                       */
 /*  Created by: Garrett Sculthorpe on 3/16/19.                           */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef queue_h 
@@ -105,7 +106,7 @@ U1 u1_OSqueue_getSts(U1 queueNum, U1* error);
 /*  Return:        U1 FIFO_QUEUE_FULL            OR                      */
 /*                    FIFO_QUEUE_PUT_SUCCESS                             */
 /*************************************************************************/
-U1    u1_OSqueue_put(U1 queueNum, U4 blockPeriod, Q_MEM message, U1* error);
+U1 u1_OSqueue_put(U1 queueNum, U4 blockPeriod, Q_MEM message, U1* error);
 
 /*************************************************************************/
 /*  Function Name: u4_OSqueue_getNumInFIFO                               */
@@ -118,7 +119,7 @@ U1    u1_OSqueue_put(U1 queueNum, U4 blockPeriod, Q_MEM message, U1* error);
 /*                     FIFO_FAILURE         OR                           */
 /*                     Number of entries in queue                        */
 /*************************************************************************/
-U4    u4_OSqueue_getNumInFIFO(U1 queueNum, U1* error);
+U4 u4_OSqueue_getNumInFIFO(U1 queueNum, U1* error);
 
 /*************************************************************************/
 /*  Global Variables                                                     */
