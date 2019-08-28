@@ -2,7 +2,8 @@
 /*  File Name:  queue_internal_IF.h                                      */
 /*  Purpose:    Kernel access definitions and routines for FIFO.         */
 /*  Created by: Garrett Sculthorpe on 5/25/19                            */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef queue_internal_IF_h 
@@ -20,12 +21,12 @@
 /*************************************************************************/
 struct listNode; /* Forward declaration. Defined in "listMgr_internal.h" */
 
-typedef struct blockedList
+typedef struct BlockedList
 {
   struct ListNode  blockedTasks[RTOS_CFG_MAX_NUM_BLOCKED_TASKS_FIFO];
   struct ListNode* blockedListHead;
 }
-blockedList;
+BlockedList;
 
 typedef struct Queue
 {
@@ -33,7 +34,7 @@ typedef struct Queue
   Q_MEM*      endPtr;            /* Last memory address of FIFO. */
   Q_MEM*      putPtr;            /* Next data sent will be put here. */
   Q_MEM*      getPtr;            /* Next get() call will take data from here. */
-  blockedList blockedTaskList;   /* Structure to track blocked tasks. */
+  BlockedList blockedTaskList;   /* Structure to track blocked tasks. */
 }
 Queue;
 
