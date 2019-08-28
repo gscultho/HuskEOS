@@ -3,6 +3,7 @@
 /*  Purpose:    Header file for scheduler module.                        */
 /*  Created by: Garrett Sculthorpe on 2/9/19.                            */
 /*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef sch_h 
@@ -26,11 +27,39 @@
 #define SCH_TASK_WAKEUP_FLAGS_EVENT              (0x04)
 #define SCH_TASK_WAKEUP_MUTEX_READY              (0x05)
 
+/*************************************************************************/
+/*  Function Name: OS_SCH_ENTER_CRITICAL                                 */
+/*  Purpose:       Critical section enter. Supports nesting.             */
+/*  Arguments:     N/A                                                   */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
 #define OS_SCH_ENTER_CRITICAL(void)              (OS_CPU_ENTER_CRITICAL(void))
+  
+/*************************************************************************/
+/*  Function Name: OS_SCH_EXIT_CRITICAL                                  */
+/*  Purpose:       Critical section exit. Supports nesting.              */
+/*  Arguments:     N/A                                                   */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
 #define OS_SCH_EXIT_CRITICAL(void)               (OS_CPU_EXIT_CRITICAL(void)) 
+  
+/*************************************************************************/
+/*  Function Name: u1_OSsch_maskInterrupts                               */
+/*  Purpose:       Masks RTOS interrupts only.                           */
+/*  Arguments:     N/A                                                   */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
 #define u1_OSsch_maskInterrupts(c)               (OS_CPU_MASK_SCHEDULER_TICK(c))
+
+/*************************************************************************/
+/*  Function Name: vd_OSsch_unmaskInterrupts                             */
+/*  Purpose:       Unmasks RTOS interrupts and restores previous mask.   */
+/*  Arguments:     N/A                                                   */
+/*  Return:        N/A                                                   */
+/*************************************************************************/
 #define vd_OSsch_unmaskInterrupts(c)             (OS_CPU_UNMASK_SCHEDULER_TICK(c))
 
+  
 /*************************************************************************/
 /*  Data Types                                                           */
 /*************************************************************************/
@@ -58,6 +87,8 @@ void vd_OS_init(U4 numMsPeriod);
 /*                 void* sp:                                             */
 /*                       Pointer to bottom of task stack (highest mem.   */
 /*                       address).                                       */
+/*                 U4 sizeOfStack:                                       */
+/*                       Size of task stack.                             */
 /*                 U1 priority:                                          */
 /*                       Unique priority level for task. 0 = highest.    */
 /*                 U1 taskID:                                            */
@@ -71,8 +102,7 @@ U1 u1_OSsch_createTask(void (*newTaskFcn)(void), void* sp, U4 sizeOfStack, U1 pr
 
 /*************************************************************************/
 /*  Function Name: vd_OSsch_start                                        */
-/*  Purpose:       Give control to operating system. Starts with highest */
-/*                 priority task.                                        */
+/*  Purpose:       Give control to operating system.                     */
 /*  Arguments:     N/A                                                   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
@@ -84,11 +114,20 @@ void vd_OSsch_start(void);
 /*  Arguments:     N/A                                                   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_OSsch_interruptEnter(void);
+U1 u1_OSsch_interruptEnter(void);
   
 /*************************************************************************/
+/*  Function Name: vd_OSsch_interruptExit                                */
+/*  Purpose:       Must be called by ISRs external to OS at exit.        */
+/*  Arguments:     U1 prioMaskReset:                                     */
+/*                    Priority mask returned by u1_OSsch_interruptEnter()*/
+/*  Return:        N/A                                                   */
+/*************************************************************************/
+void vd_OSsch_interruptExit(U1 prioMaskReset);
+
+/*************************************************************************/
 /*  Function Name: u1_OSsch_g_numTasks                                   */
-/*  Purpose:       Return current number of tasks seen by OS.            */
+/*  Purpose:       Return current number of scheduled tasks.             */
 /*  Arguments:     N/A                                                   */
 /*  Return:        Number of tasks: 0 - SCH_MAX_NUM_TASKS                */
 /*************************************************************************/
@@ -112,6 +151,7 @@ U4 u4_OSsch_getCurrentTickPeriodMs(void);
 /*                 SCH_TASK_WAKEUP_QUEUE_READY            OR             */
 /*                 SCH_TASK_WAKEUP_SEMA_READY             OR             */
 /*                 SCH_TASK_WAKEUP_FLAGS_EVENT            OR             */
+/*                 SCH_TASK_WAKEUP_MUTEX_READY            OR             */
 /*                 OS flags event that triggered wakeup                  */
 /*************************************************************************/
 U1 u1_OSsch_getReasonForWakeup(void);
@@ -141,12 +181,14 @@ U1 u1_OSsch_getCurrentTaskID(void);
 U1 u1_OSsch_getCurrentTaskPrio(void);
 
 /*************************************************************************/
-/*  Function Name: u1_OSsch_getCurrentTaskID                             */
-/*  Purpose:       Returns current task ID number.                       */
+/*  Function Name: u1_OSsch_getCPULoad                                   */
+/*  Purpose:       Returns CPU load averaged over 100 ticks.             */
 /*  Arguments:     N/A                                                   */
-/*  Return:        U1: Current task ID.                                  */
+/*  Return:        U1: CPU load as a percentage.                         */
 /*************************************************************************/
-U1 u1_OSsch_getCurrentTaskID(void);
+#if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
+U1 u1_OSsch_getCPULoad(void);
+#endif
 
 /*************************************************************************/
 /*  Function Name: vd_OSsch_setNewTickPeriod                             */
@@ -202,16 +244,6 @@ void vd_OSsch_taskSuspend(U1 taskIndex);
 /*  Return:        N/A                                                   */
 /*************************************************************************/
 void vd_OSsch_suspendScheduler(void);
-
-/*************************************************************************/
-/*  Function Name: u1_OSsch_getCPULoad                                   */
-/*  Purpose:       Returns CPU load averaged over 100 ticks.             */
-/*  Arguments:     N/A                                                   */
-/*  Return:        U1: CPU load as a percentage.                         */
-/*************************************************************************/
-#if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
-U1 u1_OSsch_getCPULoad(void);
-#endif
 
 /*************************************************************************/
 /*  Function Name: app_OSPreSleepFcn                                     */
