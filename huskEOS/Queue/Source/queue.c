@@ -2,7 +2,8 @@
 /*  File Name: queue.c                                                   */
 /*  Purpose: FIFO services for application layer tasks.                  */
 /*  Created by: Garrett Sculthorpe on 3/20/19.                           */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
    
 /* If multiple dequeue tasks are blocked, when data is put into the queue 
