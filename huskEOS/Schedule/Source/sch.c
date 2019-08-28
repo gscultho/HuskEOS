@@ -3,29 +3,12 @@
 /*  Purpose: Init and routines for scheduler module and task handling.   */
 /*  Created by: Garrett Sculthorpe on 2/29/19.                           */
 /*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 /*************************************************************************/
 /*  Includes                                                             */
 /*************************************************************************/
-
-//testing
-
-#include <stdint.h>
-#include <stdbool.h>
-#include "sysctl.h"
-#include "gpio.h"
-#include "hw_memmap.h"
-#include "hw_gpio.h"
-#include "hw_types.h"
-#include "pin_map.h"
-#include "uart.h"
-#include "uartstdio.h"
-
-
-
-
-
 #include "cpu_defs.h"
 #include "rtos_cfg.h"
 #include "sch_internal_IF.h"
@@ -50,6 +33,10 @@
 
 #if(RTOS_CFG_OS_MUTEX_ENABLED == RTOS_CONFIG_TRUE)
 #include "mutex_internal_IF.h"
+#endif
+
+#if(RTOS_CFG_OS_MEM_ENABLED == RTOS_CONFIG_TRUE)
+#include "memory_internal_IF.h"
 #endif
 
 /*************************************************************************/
@@ -111,10 +98,7 @@ static U1 u1_s_sleepState;
 #endif
 static ListNode* node_s_p_headOfWaitList;
 static ListNode* node_s_p_headOfReadyList;
-
-#if (RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
-static OS_STACK u4_backgroundStack[SCH_BG_TASK_STACK_SIZE];
-#endif
+static OS_STACK  u4_backgroundStack[SCH_BG_TASK_STACK_SIZE];
 
 /* Allocate memory for data structures used for TCBs and scheduling queues */
 static ListNode   Node_s_as_listAllTasks[SCH_MAX_NUM_TASKS];     
@@ -128,9 +112,7 @@ static OS_RunTimeStats OS_s_cpuData;
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
 /*************************************************************************/
-#if (RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
 static void vd_OSsch_background(void);
-#endif
 
 #if(RTOS_CONFIG_ENABLE_STACK_OVERFLOW_DETECT == RTOS_CONFIG_TRUE)
 static U1 u1_sch_checkStack(U1 taskIndex);
@@ -215,6 +197,8 @@ void vd_OS_init(U4 numMsPeriod)
 /*                 void* sp:                                             */
 /*                       Pointer to bottom of task stack (highest mem.   */
 /*                       address).                                       */
+/*                 U4 sizeOfStack:                                       */
+/*                       Size of task stack.                             */
 /*                 U1 priority:                                          */
 /*                       Unique priority level for task. 0 = highest.    */
 /*                 U1 taskID:                                            */
@@ -284,8 +268,8 @@ void vd_OSsch_start(void)
   /* Start at highest priority task */
   tcb_g_p_nextTaskBlock = node_s_p_headOfReadyList->TCB;
   
-  vd_cpu_enableInterruptsOSStart();
   OS_CPU_TRIGGER_DISPATCHER();
+  vd_cpu_enableInterruptsOSStart();
 }
 
 /*************************************************************************/
@@ -294,18 +278,31 @@ void vd_OSsch_start(void)
 /*  Arguments:     N/A                                                   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_OSsch_interruptEnter(void)
+U1 u1_OSsch_interruptEnter(void)
 {
-  OS_CPU_ENTER_CRITICAL();
-#if(RTOS_CONFIG_PRESLEEP_FUNC == RTOS_CONFIG_TRUE)
+  #if(RTOS_CONFIG_PRESLEEP_FUNC == RTOS_CONFIG_TRUE)
   if(u1_s_sleepState == (U1)SCH_CPU_SLEEPING)
   {  
-    /* pre-sleep hook function defined by application */
+    /* Post-sleep hook function defined by application */
     app_OSPostSleepFcn();
     
     u1_s_sleepState = (U1)SCH_CPU_NOT_SLEEPING;
   }
 #endif
+  
+  return (u1_OSsch_maskInterrupts());
+}  
+  
+/*************************************************************************/
+/*  Function Name: vd_OSsch_interruptExit                                */
+/*  Purpose:       Must be called by ISRs external to OS at exit.        */
+/*  Arguments:     U1 prioMaskReset:                                     */
+/*                    Priority mask returned by u1_OSsch_interruptEnter()*/
+/*  Return:        N/A                                                   */
+/*************************************************************************/
+void vd_OSsch_interruptExit(U1 prioMaskReset)
+{
+  vd_OSsch_unmaskInterrupts(prioMaskReset);
 }
 
 /*************************************************************************/
@@ -339,6 +336,8 @@ U4 u4_OSsch_getCurrentTickPeriodMs(void)
 /*                 SCH_TASK_WAKEUP_MBOX_READY             OR             */
 /*                 SCH_TASK_WAKEUP_QUEUE_READY            OR             */
 /*                 SCH_TASK_WAKEUP_SEMA_READY             OR             */
+/*                 SCH_TASK_WAKEUP_FLAGS_EVENT            OR             */
+/*                 SCH_TASK_WAKEUP_MUTEX_READY            OR             */
 /*                 OS flags event that triggered wakeup                  */
 /*************************************************************************/
 U1 u1_OSsch_getReasonForWakeup(void)
@@ -361,7 +360,7 @@ U1 u1_OSsch_getReasonForWakeup(void)
 /*  Function Name: u4_OSsch_getTicks                                     */
 /*  Purpose:       Get number of ticks from scheduler. Overflows to zero.*/
 /*  Arguments:     N/A                                                   */
-/*  Return:        U4 u4_s_tickCntr                                      */
+/*  Return:        Number of scheduler ticks.                            */
 /*************************************************************************/
 U4 u4_OSsch_getTicks(void)
 {
@@ -419,7 +418,7 @@ void vd_OSsch_setNewTickPeriod(U4 numMsReload)
 /*  Function Name: vd_OSsch_setReasonForWakeup                           */
 /*  Purpose:       Set reason for wakeup to resource available. Called   */
 /*                 internal to RTOS by other RTOS modules. It is expected*/
-/*                 that OS internal modules will call taskWake() *After* */
+/*                 that OS internal modules will call taskWake() *after* */
 /*                 this function call and maintain their own block lists.*/
 /*  Arguments:     U1 reason:                                            */
 /*                    Identifier code for wakeup reason.                 */
@@ -433,10 +432,10 @@ void vd_OSsch_setReasonForWakeup(U1 reason, struct Sch_Task* wakeupTaskTCB)
   OS_CPU_ENTER_CRITICAL();
   
   /* Clear OS resource pointer. */
-  wakeupTaskTCB->resource   = (void*)NULL;
+  wakeupTaskTCB->resource = (void*)NULL;
   
   /* Remove sleep reason from flags entry in TCB */
-  wakeupTaskTCB->flags     &= ~((U1)reason);
+  wakeupTaskTCB->flags &= ~((U1)reason);
   
   /* Set the wakeup reason for application to read. */
   wakeupTaskTCB->wakeReason = reason;
@@ -449,7 +448,9 @@ void vd_OSsch_setReasonForWakeup(U1 reason, struct Sch_Task* wakeupTaskTCB)
 /*  Purpose:       Set reason for task sleep according to mask.          */
 /*  Arguments:     void* taskSleepResource:                              */
 /*                       Address of resource task is blocked on.         */
-/*  Return:        void                                                  */
+/*                 U1 resourceType:                                      */
+/*                       Code for resource that task is sleeping on.     */
+/*  Return:        N/A                                                   */
 /*************************************************************************/
 void vd_OSsch_setReasonForSleep(void* taskSleepResource, U1 resourceType)
 {
@@ -467,10 +468,10 @@ void vd_OSsch_setReasonForSleep(void* taskSleepResource, U1 resourceType)
 /*  Function Name: u1_OSsch_setNewPriority                               */
 /*  Purpose:       Function to change task priority in support of        */
 /*                 priority inheritance. Internal use only. Internal     */
-/*                 module must first put task into sleep/suspended state */
-/*                 before changing its priority.                         */
+/*                 module must ensure that no two active tasks share     */
+/*                 the same priority value at any time.                  */
 /*  Arguments:     Sch_Task* tcb:                                        */
-/*                                             */
+/*                           Pointer to TCB to have priority changed.    */
 /*                 U1 newPriority:                                       */
 /*                                                                       */
 /*  Return:        U1: Previous priority value.                          */
@@ -526,7 +527,6 @@ U1 u1_OSsch_setNewPriority(struct Sch_Task* tcb, U1 newPriority)
 /*************************************************************************/
 void vd_OSsch_taskSleep(U4 period)
 {
-  //GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
   /* Don't let scheduler interrupt itself. Ticker keeps ticking. */
   OS_CPU_ENTER_CRITICAL();
   
@@ -536,7 +536,7 @@ void vd_OSsch_taskSleep(U4 period)
   /* Switch to an active task */
   vd_OSsch_setNextReadyTaskToRun();
   OS_CPU_TRIGGER_DISPATCHER();
-  //GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
+
   /* Resume tick interrupts and enable context switch interrupt. */
   OS_CPU_EXIT_CRITICAL();
 }
@@ -659,6 +659,7 @@ void vd_OSsch_taskSuspend(U1 taskIndex)
     vd_list_removeNode(&node_s_p_headOfReadyList, node_t_p_suspendTask); 
     vd_list_addNodeToEnd(&node_s_p_headOfWaitList, node_t_p_suspendTask); 
   }
+  else{}
 
   /* Is task suspending itself or another task? */
   if(node_t_p_suspendTask->TCB == tcb_g_p_currentTaskBlock)
@@ -667,6 +668,7 @@ void vd_OSsch_taskSuspend(U1 taskIndex)
     tcb_g_p_nextTaskBlock = node_s_p_headOfReadyList->TCB;
     OS_CPU_TRIGGER_DISPATCHER();
   }
+  else{}
   
   /* Resume tick interrupts and enable context switch interrupt. */
   OS_CPU_EXIT_CRITICAL();
@@ -691,35 +693,34 @@ void vd_OSsch_suspendScheduler(void)
 /*************************************************************************/
 __irq void vd_OSsch_systemTick_ISR(void)
 {
-  //GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
-  vd_OSsch_interruptEnter();
+  U1 u1_t_prioMask;
+
+  u1_t_prioMask = u1_OSsch_interruptEnter();
   
   /* Increment ticks but cap at max (0xFFFFFFFF rounded down to nearest 100). */
   u4_s_tickCntr = (++u4_s_tickCntr) % (U4)SCH_MAX_NUM_TICK;
   
 #if(RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
-
-#if(RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
   if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[ZERO]->TCB))
   {
     OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += ((U1)SCH_ONE_HUNDRED_PERCENT - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
   }
+  else{}
   
   if((u4_s_tickCntr % (U4)SCH_HUNDRED_TICKS) == (U4)ZERO)
   {
     OS_s_cpuData.CPUIdlePercent.CPU_idleAvg     = (U1)(OS_s_cpuData.CPUIdlePercent.CPU_idleRunning/(U4)SCH_HUNDRED_TICKS);
     OS_s_cpuData.CPUIdlePercent.CPU_idleRunning = (U1)ZERO;
   }
+  else{}
   
   OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp = (U1)ZERO;
-#endif
-  
 #endif  
   
   vd_OSsch_periodicScheduler();
- // GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
+
   /* Resume tick interrupts and enable context switch interrupt. */
-  OS_CPU_EXIT_CRITICAL();
+  vd_OSsch_interruptExit(u1_t_prioMask);
 }
 
 /*************************************************************************/
@@ -873,7 +874,6 @@ static void vd_OSsch_periodicScheduler(void)
 /*  Arguments:     N/A                                                   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-#if (RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE)
 static void vd_OSsch_background(void)
 {
   U1 u1_t_index;
@@ -887,9 +887,16 @@ static void vd_OSsch_background(void)
       {
         OSTaskFault();
       }
+      else{}
     }
 #endif
-    
+#if(RTOS_CFG_OS_MEM_ENABLED == RTOS_CONFIG_TRUE)
+    if(u1_MemMaintenance())
+    {
+      OSTaskFault();
+    }
+    else{}
+#endif    
 #if (RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
     OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp = u1_cpu_getPercentOfTick();
 #endif
@@ -906,7 +913,6 @@ static void vd_OSsch_background(void)
 #endif
   }
 }
-#endif
 
 /*************************************************************************/
 /*  Function Name: u1_sch_checkStack                                     */
@@ -975,3 +981,5 @@ static U1 u1_sch_checkStack(U1 taskIndex)
 /*                                sch_internal_F.h                                             */
 /*                                                                                             */
 /* 2.2                8/19/19     Fixed minor bugs in CPU load calculation.                    */
+/*                                                                                             */
+/* 2.3                8/27/19     Integrated memory module.                                    */
