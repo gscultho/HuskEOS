@@ -2,7 +2,8 @@
 /*  File Name:  mbox_internal_IF.h                                       */
 /*  Purpose:    Kernel access definitions and routines for mailbox.      */
 /*  Created by: Garrett Sculthorpe on 3/3/19                             */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef mbox_internal_IF_h 
@@ -21,8 +22,8 @@
 /*************************************************************************/
 typedef struct Mailbox
 {
-  MAIL mail;
-  U1   blockedTaskID;   
+  MAIL mail;             /* Holds data */
+  U1   blockedTaskID;    /* If a task is blocked on mailbox, its ID is stored here. */
 }
 Mailbox;
 
