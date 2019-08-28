@@ -2,13 +2,13 @@
 /*  File Name:  semaphore_internal_IF.h                                  */
 /*  Purpose:    Kernel access definitions and routines for semaphore.    */
 /*  Created by: Garrett Sculthorpe on 5/23/19                            */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef semaphore_internal_IF_h 
 #define semaphore_internal_IF_h
 
-#include "cpu_defs.h"
 #include "rtos_cfg.h"
 
 /*************************************************************************/
@@ -35,15 +35,15 @@ Semaphore;
 /*************************************************************************/
 
 /*************************************************************************/
-/*  Function Name: vd_sema_blockedTimeout                                */
+/*  Function Name: vd_OSsema_blockedTimeout                              */
 /*  Purpose:       API for scheduler to call when sleeping task times out*/
-/*  Arguments:     Semaphore* semaphore:                                 */
+/*  Arguments:     OSSemaphore* semaphore:                               */
 /*                     Pointer to semaphore.                             */
 /*                 Sch_Task* taskTCB:                                    */
 /*                     Pointer to TCB of blocked task.                   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_sema_blockedTimeout(struct Semaphore* semaphore, struct Sch_Task* taskTCB);
+void vd_OSsema_blockedTimeout(struct Semaphore* semaphore, struct Sch_Task* taskTCB);
 
 /*************************************************************************/
 /*  Global Variables                                                     */
