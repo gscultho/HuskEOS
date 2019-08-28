@@ -2,7 +2,8 @@
 /*  File Name: mailbox.c                                                 */
 /*  Purpose: Mailbox services for application layer tasks.               */
 /*  Created by: Garrett Sculthorpe on 3/3/19.                            */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 /* Each created mailbox is to be used between only two tasks 
@@ -77,7 +78,7 @@ void vd_OSmbox_init(void)
 /*************************************************************************/
 MAIL mail_OSmbox_getMail(U1 mailbox, U4 blockPeriod, U1* errorCode)
 {
-  MAIL     mail_t_data;
+  MAIL mail_t_data;
   
   *errorCode = u1_OSmbox_checkValidMailbox(mailbox);
 
@@ -175,7 +176,8 @@ MAIL mail_OSmbox_checkMail(U1 mailbox, U1* errorCode)
     }
     else
     {
-     
+      *errorCode  = (U1)MBOX_ERR_MAILBOX_EMPTY;
+      mail_t_data = (U1)MBOX_FAILURE; 
     }
     
     OS_CPU_EXIT_CRITICAL();
@@ -297,6 +299,10 @@ void vd_OSmbox_clearMailbox(U1 mailbox)
     {
       vd_OSmbox_unblockWaitingTask(mailbox);
     }
+    else
+    {
+      
+    }
     
     OS_CPU_EXIT_CRITICAL();
   }
@@ -330,6 +336,7 @@ static U1 u1_OSmbox_checkValidMailbox(U1 mailbox)
   {
     return ((U1)MBOX_ERR_MAILBOX_OUT_OF_RANGE);  
   }
+  else{}
   
   return ((U1)MBOX_MAILBOX_NUM_VALID);
 }
@@ -350,6 +357,10 @@ static void vd_OSmbox_blockHandler(U4 blockPeriod, U1 mailboxID)
   if(Mbox_MailboxList[mailboxID].blockedTaskID == (U1)MBOX_NO_BLOCKED_TASK)
   { 
     Mbox_MailboxList[mailboxID].blockedTaskID = SCH_CURRENT_TASK_ID;
+  }
+  else
+  {
+    
   }
   
   /* Set task to sleep state and notify scheduler of reason. */
@@ -375,7 +386,7 @@ static void vd_OSmbox_unblockWaitingTask(U1 mailboxID)
   
   /* Notify scheduler to change task state. If woken task is higher priority than running task, context switch will occur after critical section. */
   vd_OSsch_taskWake(u1_t_blockedTask);
-  
+    
   Mbox_MailboxList[mailboxID].blockedTaskID = (U1)MBOX_NO_BLOCKED_TASK;
 }
 
