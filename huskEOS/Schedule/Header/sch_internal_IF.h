@@ -3,6 +3,7 @@
 /*  Purpose:    Kernel access definitions and routines for scheduler.    */
 /*  Created by: Garrett Sculthorpe on 5/20/2019                          */
 /*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef sch_internal_IF_h 
@@ -67,7 +68,7 @@ OS_RunTimeStats;
 /*  Function Name: vd_OSsch_setReasonForWakeup                           */
 /*  Purpose:       Set reason for wakeup to resource available. Called   */
 /*                 internal to RTOS by other RTOS modules. It is expected*/
-/*                 that OS internal modules will call taskWake() *After* */
+/*                 that OS internal modules will call taskWake() *after* */
 /*                 this function call and maintain their own block lists.*/
 /*  Arguments:     U1 reason:                                            */
 /*                    Identifier code for wakeup reason.                 */
@@ -83,7 +84,9 @@ void vd_OSsch_setReasonForWakeup(U1 reason, struct Sch_Task* wakeupTaskTCB);
 /*  Purpose:       Set reason for task sleep according to mask.          */
 /*  Arguments:     void* taskSleepResource:                              */
 /*                       Address of resource task is blocked on.         */
-/*  Return:        void                                                  */
+/*                 U1 resourceType:                                      */
+/*                       Code for resource that task is sleeping on.     */
+/*  Return:        N/A                                                   */
 /*************************************************************************/
 void vd_OSsch_setReasonForSleep(void* taskSleepResource, U1 resourceType);
 
