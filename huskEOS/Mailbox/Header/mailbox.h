@@ -2,12 +2,15 @@
 /*  File Name:  mailbox.h                                                */
 /*  Purpose:    Header file for mailbox module.                          */
 /*  Created by: Garrett Sculthorpe on 3/3/19                             */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 #ifndef mailbox_h 
 #if(RTOS_CFG_OS_MAILBOX_ENABLED == RTOS_CONFIG_TRUE)
 #define mailbox_h
+
+#include "rtos_cfg.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
@@ -72,7 +75,7 @@ MAIL mail_OSmbox_checkMail(U1 mailbox, U1* errorCode);
 /*  Return:        U1 MBOX_SUCCESS  OR                                   */
 /*                    MBOX_FAILURE                                       */
 /*************************************************************************/
-U1   u1_OSmbox_sendMail(U1 mailbox, U4 blockPeriod, MAIL data, U1* errorCode);
+U1 u1_OSmbox_sendMail(U1 mailbox, U4 blockPeriod, MAIL data, U1* errorCode);
 
 /*************************************************************************/
 /*  Function Name: vd_OSmbox_clearMailbox                                */
