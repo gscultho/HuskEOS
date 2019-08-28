@@ -3,14 +3,13 @@
 /*  Purpose: APIs for scheduler to interface with hardware.              */
 /*  Compiler: ARM C/C++ Compiler, 5.03 [Build 76]                        */
 /*  Created by: Garrett Sculthorpe on 2/12/19.                           */
-/*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*              All rights reserved.                                     */
 /*************************************************************************/
 
 /*************************************************************************/
 /*  Includes                                                             */
 /*************************************************************************/
-#include "rtos_cfg.h"
-#include "cpu_defs.h"
 #include "cpu_os_interface.h"
 
 /*************************************************************************/
@@ -22,7 +21,6 @@ extern void UnmaskInterrupt(U1);
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
-#define CPU_TRUE                      (1)
 #define CPU_FALSE                     (0)
 #define SYSTICK_CONTROL_R             (NVIC_ST_CTRL_R) 
 #define SYSTICK_RELOAD_R              (NVIC_ST_RELOAD_R) 
@@ -41,9 +39,9 @@ extern void UnmaskInterrupt(U1);
 #define GENERAL_PURPOSE_REG_START     (-2)
 
 /*************************************************************************/
-/*  Data Structures                                                      */
+/*  Data Types                                                           */
 /*************************************************************************/
-
+typedef U4 clockReg;
 
 /*************************************************************************/
 /*  Global Variables, Constants                                          */
@@ -66,7 +64,7 @@ static U1 u1_intNestCounter;
 
 /*************************************************************************/
 /*  Function Name: vd_cpu_init                                           */
-/*  Purpose:       Initialize scheduler interrupts.                      */
+/*  Purpose:       Initialize registers for scheduler interrupts.        */
 /*  Arguments:     U4 numMs:                                             */
 /*                    Period for scheduler IRQ to be triggered.          */
 /*  Return:        N/A                                                   */
@@ -140,7 +138,7 @@ void vd_cpu_disableInterrupts(void)
 #pragma pop
 
 /*************************************************************************/
-/*  Function Name: vd_cpu_exitCritical                                   */
+/*  Function Name: vd_cpu_enableInterrupts                               */
 /*  Purpose:       Exit critical section by enabling interrupts.         */
 /*  Arguments:     N/A                                                   */
 /*  Return:        N/A                                                   */
@@ -168,7 +166,7 @@ void vd_cpu_enableInterrupts(void)
 /*************************************************************************/
 /*  Function Name: u1_cpu_maskInterrupts                                 */
 /*  Purpose:       Mask interrupts up to a specified priority.           */
-/*  Arguments:     U4 setMask:                                           */
+/*  Arguments:     U1 setMask:                                           */
 /*                    Interrupt priority mask.                           */
 /*  Return:        ut_t_interruptMask: Previous interrupt mask.          */
 /*************************************************************************/
@@ -214,7 +212,7 @@ U4 u4_cpu_getCurrentMsPeriod(void)
 
 /*************************************************************************/
 /*  Function Name: vd_cpu_suspendScheduler                               */
-/*  Purpose:       Resets and turns off scheduler interrupts.            */
+/*  Purpose:       Turns off scheduler interrupts.                       */
 /*  Arguments:     N/A                                                   */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
@@ -239,7 +237,7 @@ void vd_cpu_setNewSchedPeriod(U4 numMs)
 /*  Function Name: u1_cpu_getPercentOfTick                               */
 /*  Purpose:       Return number of clock cycles done in current tick.   */
 /*  Arguments:     N/A                                                   */
-/*  Return:        Number of clock cycles.                               */
+/*  Return:        U1: Number of clock cycles.                           */
 /*************************************************************************/
 U1 u1_cpu_getPercentOfTick(void)
 {
@@ -255,7 +253,7 @@ U1 u1_cpu_getPercentOfTick(void)
 }
 
 /*************************************************************************/
-/*  Function Name: vd_cpu_sysTickSe                                      */
+/*  Function Name: vd_cpu_sysTickSet                                     */
 /*  Purpose:       Configure SysTick registers.                          */
 /*  Arguments:     U4 numMs:                                             */
 /*                    Period for scheduler IRQ to be triggered.          */
@@ -275,10 +273,10 @@ static void vd_cpu_sysTickSet(U4 numMs)
   /* SysTick overflow check */
   numMs &= (U4)SYSTICK_24_BIT_MASK;
   
-  SYSTICK_CONTROL_R      &= ~(SYSTICK_DISABLED);            // 1) disable SysTick during setup 
-  SYSTICK_RELOAD_R        = --numMs;                        // 2) Reload value 
-  SYSTICK_CURRENT_COUNT_R = CPU_FALSE;                      // 3) any write to CURRENT clears it  
-  SYSTICK_CONTROL_R      |= (U1)SYSTICK_CTRL_EXTERNAL_CLK;  // 4) enable SysTick with core clock
+  SYSTICK_CONTROL_R      &= ~(SYSTICK_DISABLED);            /* 1) disable SysTick during setup   */
+  SYSTICK_RELOAD_R        = --numMs;                        /* 2) Reload value                   */
+  SYSTICK_CURRENT_COUNT_R = CPU_FALSE;                      /* 3) any write to CURRENT clears it */
+  SYSTICK_CONTROL_R      |= (U1)SYSTICK_CTRL_EXTERNAL_CLK;  /* 4) enable SysTick with core clock */
   reg_s_currentReloadVal  = numMs;
 }
 
