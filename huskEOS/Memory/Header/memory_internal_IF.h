@@ -11,6 +11,7 @@
 
 #include "cpu_defs.h"
 #include "rtos_cfg.h"
+#include "stdlib.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */

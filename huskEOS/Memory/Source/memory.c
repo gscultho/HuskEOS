@@ -29,7 +29,7 @@ static OSMemBlock as_MemHeap[RTOS_CFG_MAX_NUM_MEM_BLOCKS];
 /*  Private Function Prototypes                                          */
 /*************************************************************************/
 
-U1 u1_MemMaintenance();
+U1 u1_MemMaintenance(void);
 U1 u1_FindHeapIndex(U1* pu1_BlockStart, U1* pu1_err);
 
 /*************************************************************************/
@@ -225,7 +225,6 @@ U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err)
 /*************************************************************************/
 void v_OSFree(U1** pu1_BlockStart, U1* pu1_err)
 {
-	U1 u1_HeapIndex  = 0;
 	U1 u1_LocalError = 0;
 	U1 u1_BlockIndex = 0;
 	
@@ -288,8 +287,7 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 	}
 	
 	/* case if the user requests a size outside of the possible range */
-	else if ( u1_NewSize < 0
-		     || u1_NewSize > u1_LargestBlockSize)
+	else if (u1_NewSize > u1_LargestBlockSize)
 	{
 		/* just return an error */
 		*pu1_err = MEM_ERR_INVALID_SIZE_REQUEST;
