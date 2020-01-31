@@ -32,7 +32,7 @@ Real-Time Operating System
    * Data type passed through mailbox is configurable.
   
  * ### Memory
-   * Emulates dynamic memory allocation. Allocates blocks of configurable size.   
+   * Emulates dynamic memory allocation. Allocates blocks of configurable size for use by application.   
    * Overflow/underflow (outside of memory block) detection supported.  
    * Work in progress at this time. 
   
