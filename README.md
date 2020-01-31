@@ -2,12 +2,13 @@
 Real-Time Operating System
 
 ## General Information
-⋅⋅* Priority-based preemptive scheduler. 
-⋅⋅* 2.3 - 6KB flash footprint. 
-⋅⋅* All memory statically allocated, no need for heap. Memory module supports "dynamic" memory emulation. 
-⋅⋅* Entire OS is hardware-agnostic aside from a small OS/CPU interface layer for porting. Application calls to hardware-dependent services      are mapped through OS/CPU interface.  
-⋅⋅* Public modules designed to have similar API functionality and naming conventions for ease of use. 
-⋅⋅* Stack overflow detection supported. 
+ * Priority-based preemptive scheduler. 
+ * 2.3 - 6KB flash footprint. 
+ * All memory statically allocated, no need for heap. Memory module supports "dynamic" memory emulation. 
+ * Entire OS is hardware-agnostic aside from a small OS/CPU interface layer for porting. Application calls to hardware-dependent  
+   services are mapped through OS/CPU interface.  
+ * Public modules designed to have similar API functionality and naming conventions for ease of use. 
+ * Stack overflow detection supported. 
 
 ## Modules
  * ### Scheduler
