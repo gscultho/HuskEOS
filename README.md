@@ -14,8 +14,9 @@ Real-Time Operating System
  
 ## Repository and Contact Information
 
-  | :Repository link  | (https://github.com/gscultho/HuskEOS)  |
-  | :Email            | gscultho@umich.edu                     |
+  | Repository link  | (https://github.com/gscultho/HuskEOS)  |
+  | :--------------- | :---------------                       |
+  | Email            | gscultho@umich.edu                     |
 
 ## Modules
  * ### Scheduler
