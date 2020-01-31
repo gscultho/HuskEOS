@@ -9,7 +9,7 @@ Real-Time Operating System
  * Entire OS is hardware-agnostic aside from a small OS/CPU interface layer for porting. Application calls to hardware-dependent
    services are mapped through OS/CPU interface.  
  * Public modules designed to have similar API functionality and naming conventions for ease of use. 
- * Stack overflow detection supported. 
+ * Stack overflow detection supported for each task with configurable fault handlers. 
 
 ## Modules
  * ### Scheduler
