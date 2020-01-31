@@ -10,7 +10,7 @@ Real-Time Operating System
 ⋅⋅* Stack overflow detection supported. 
 
 ## Modules
-   * ### Scheduler
+ * ### Scheduler
    * One module for task scheduling and state handling. 
    * Priority-based preemptive scheduler.
    * O(n) scheduler (n being the number of tasks in "wait" state) runs at configurable period. 
