@@ -11,6 +11,11 @@ Real-Time Operating System
  * Public modules designed to have similar API functionality and naming conventions for ease of use. 
  * Stack overflow detection supported for each task with configurable fault handlers. 
  * Configured Keil project included in repository. 
+ 
+## Repository and Contact Information
+
+  | :Repository link  | (https://github.com/gscultho/HuskEOS)  |
+  | :Email            | gscultho@umich.edu                     |
 
 ## Modules
  * ### Scheduler
