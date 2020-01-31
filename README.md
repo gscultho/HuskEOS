@@ -1,4 +1,4 @@
-#HuskEOS
+# HuskEOS
 Real-Time Operating System
 
 ## General Information
@@ -10,25 +10,25 @@ Real-Time Operating System
 ⋅⋅* Stack overflow detection supported. 
 
 ## Modules
-⋅⋅* ###Scheduler
-  ⋅⋅* One module for task scheduling and state handling. 
-  ⋅⋅* Priority-based preemptive scheduler.
-  ⋅⋅* O(n) scheduler (n being the number of tasks in "wait" state) runs at configurable period. 
-  ⋅⋅* O(1) dispatcher for deterministic performance in between system ticks. 
-  ⋅⋅* Supports some real-time debugging data, such as CPU load. 
-  ⋅⋅* Wake/sleep hook functions supported for before/after the CPU goes to sleep/wakes up when idle. 
+   *### Scheduler
+   * One module for task scheduling and state handling. 
+   * Priority-based preemptive scheduler.
+   * O(n) scheduler (n being the number of tasks in "wait" state) runs at configurable period. 
+   * O(1) dispatcher for deterministic performance in between system ticks. 
+   * Supports some real-time debugging data, such as CPU load. 
+   * Wake/sleep hook functions supported for before/after the CPU goes to sleep/wakes up when idle. 
   
-⋅⋅* ###Flags
-  ⋅⋅* Byte-sized event flag objects. 
-  ⋅⋅* Tasks can block on a flags object to wait for an event. Blocking timeout and indefinite blocking both supported by APIs. 
-  ⋅⋅* Tasks can block on any event out of a set of specified events, or on an exact combination of events.  
+ * ### Flags
+   * Byte-sized event flag objects. 
+   * Tasks can block on a flags object to wait for an event. Blocking timeout and indefinite blocking both supported by APIs. 
+   * Tasks can block on any event out of a set of specified events, or on an exact combination of events.  
   
-⋅⋅* ###Mailbox
+⋅⋅* ### Mailbox
   ⋅⋅* Used to pass single pieces of data between tasks.  
   ⋅⋅* APIs support task blocking with configurable timeout. 
   ⋅⋅* Data type passed through mailbox is easily configurable.
   
-⋅⋅* ###Memory
+⋅⋅* ### Memory
   ⋅⋅* Emulates dynamic memory allocation. Allocates blocks of configurable size.   
   ⋅⋅* Overflow/underflow (outside of memory block) detection supported.  
   ⋅⋅* Work in progress at this time. 
