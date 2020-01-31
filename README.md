@@ -33,7 +33,7 @@ Real-Time Operating System
    * Overflow/underflow (outside of memory block) detection supported.  
    * Work in progress at this time. 
   
- * ###Semaphore
+ * ### Semaphore
    * Designed for counting and signaling purposes. For mutual exclusion see Mutex.    
    * APIs support task blocking with configurable timeout with priority-based policy for task waking when multiple tasks are blocked on      the same semaphore.  
 
