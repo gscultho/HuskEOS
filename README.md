@@ -4,6 +4,7 @@ Real-Time Operating System
 ## General Information
  * Priority-based preemptive scheduler. 
  * 2.3 - 6KB flash footprint. 
+ * Originally developed for Arm Cortex-M4.
  * All memory statically allocated, no need for heap. Memory module supports "dynamic" memory emulation. 
  * Entire OS is hardware-agnostic aside from a small OS/CPU interface layer for porting. Application calls to hardware-dependent
    services are mapped through OS/CPU interface.  
@@ -12,22 +13,23 @@ Real-Time Operating System
 
 ## Modules
  * ### Scheduler
-   * One module for task scheduling and state handling. 
+   * Task scheduling and state handling. 
    * Priority-based preemptive scheduler.
-   * O(n) scheduler (n being the number of tasks in "wait" state) runs at configurable period. 
-   * O(1) dispatcher for deterministic performance in between system ticks. 
+   * O(n) scheduler (n being the number of tasks in "wait" state) runs at configurable frequency. 
+   * O(1) dispatcher for deterministic performance between system ticks. 
    * Supports some real-time debugging data, such as CPU load. 
-   * Wake/sleep hook functions supported for before/after the CPU goes to sleep/wakes up when idle. 
+   * Hook functions built in for modifications to OS behavior (i.e. when CPU goes to sleep/wakes up). 
   
  * ### Flags
-   * Byte-sized event flag objects. 
-   * Tasks can block on a flags object to wait for an event. Blocking timeout and indefinite blocking both supported by APIs. 
+   * Event flag objects. 
+   * APIs support task blocking with optional timeout. Priority-based policy for task waking when multiple tasks are blocked on the same 
+     object.  
    * Tasks can block on any event out of a set of specified events, or on an exact combination of events.  
   
  * ### Mailbox
    * Used to pass single pieces of data between tasks.  
-   * APIs support task blocking with configurable timeout. 
-   * Data type passed through mailbox is easily configurable.
+   * APIs support task blocking with optional timeout. 
+   * Data type passed through mailbox is configurable.
   
  * ### Memory
    * Emulates dynamic memory allocation. Allocates blocks of configurable size.   
@@ -36,5 +38,21 @@ Real-Time Operating System
   
  * ### Semaphore
    * Designed for counting and signaling purposes. For mutual exclusion see Mutex.    
-   * APIs support task blocking with configurable timeout with priority-based policy for task waking when multiple tasks are blocked on      the same semaphore.  
+   * APIs support task blocking with optional timeout and priority-based waking policy. 
+   
+ * ### Mutex
+   * Mutual exclusion semaphore.    
+   * Supports priority inheritance to eliminate possibility of priority inversion.
+   * APIs support task blocking with optional timeout and priority-based waking policy. 
+  
+ * ### Queue
+   * Fully configurable FIFO message queues.    
+   * Configurable data type for messages.
+   * APIs support task blocking with optional timeout and priority-based waking policy. 
 
+## Current/Future Work
+ * Support for multicore systems.
+   * In design stage for supporting symmetric multiprocessing with optional core affinity. 
+   * HuskEOS should presently be able to run in an asymmetric multiprocessing architecture on any number of cores, although this needs 
+     to be tested. 
+ * Memory module is currently being tested before final source is pushed. 
