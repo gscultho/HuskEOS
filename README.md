@@ -10,7 +10,7 @@ Real-Time Operating System
 ⋅⋅* Stack overflow detection supported. 
 
 ## Modules
-   *### Scheduler
+   * ### Scheduler
    * One module for task scheduling and state handling. 
    * Priority-based preemptive scheduler.
    * O(n) scheduler (n being the number of tasks in "wait" state) runs at configurable period. 
@@ -23,17 +23,17 @@ Real-Time Operating System
    * Tasks can block on a flags object to wait for an event. Blocking timeout and indefinite blocking both supported by APIs. 
    * Tasks can block on any event out of a set of specified events, or on an exact combination of events.  
   
-⋅⋅* ### Mailbox
-  ⋅⋅* Used to pass single pieces of data between tasks.  
-  ⋅⋅* APIs support task blocking with configurable timeout. 
-  ⋅⋅* Data type passed through mailbox is easily configurable.
+ * ### Mailbox
+   * Used to pass single pieces of data between tasks.  
+   * APIs support task blocking with configurable timeout. 
+   * Data type passed through mailbox is easily configurable.
   
-⋅⋅* ### Memory
-  ⋅⋅* Emulates dynamic memory allocation. Allocates blocks of configurable size.   
-  ⋅⋅* Overflow/underflow (outside of memory block) detection supported.  
-  ⋅⋅* Work in progress at this time. 
+ * ### Memory
+   * Emulates dynamic memory allocation. Allocates blocks of configurable size.   
+   * Overflow/underflow (outside of memory block) detection supported.  
+   * Work in progress at this time. 
   
-⋅⋅* ###Semaphore
-  ⋅⋅* Designed for counting and signaling purposes. For mutual exclusion see Mutex.    
-  ⋅⋅* APIs support task blocking with configurable timeout with priority-based policy for task waking when multiple tasks are blocked on      the same semaphore.  
+ * ###Semaphore
+   * Designed for counting and signaling purposes. For mutual exclusion see Mutex.    
+   * APIs support task blocking with configurable timeout with priority-based policy for task waking when multiple tasks are blocked on      the same semaphore.  
 
