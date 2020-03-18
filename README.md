@@ -4,7 +4,7 @@ Real-Time Operating System
 ## General Information
  * Priority-based preemptive scheduler. 
  * 2.3 - 6KB flash footprint. 
- * Originally developed for Arm Cortex-M4.
+ * Originally developed for Arm Cortex-M4 based MCU.
  * All memory statically allocated, no need for heap. Memory module supports "dynamic" memory emulation. 
  * Entire OS is hardware-agnostic aside from a small OS/CPU interface layer for porting. Application calls to hardware-dependent
    services are mapped through OS/CPU interface.  
