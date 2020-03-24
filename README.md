@@ -60,7 +60,7 @@ Real-Time Operating System
    * APIs support task blocking with optional timeout and priority-based waking policy. 
 
 ## Current/Future Work
- * Support for multicore systems.
+ * Support for multicore CPUs.
    * In design stage for supporting symmetric multiprocessing with optional core affinity. 
    * HuskEOS should presently be able to run in an asymmetric multiprocessing architecture on any number of cores, although this needs 
      to be tested. 
