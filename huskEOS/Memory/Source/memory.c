@@ -2,362 +2,423 @@
 /*  File Name: memory.c                                                  */
 /*  Purpose: Functions for user-controlled memory management.            */
 /*  Created by: Darren Cicala on 7/13/19.                                */
-/*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
+/*  Copyright ï¿½ 2019 Garrett Sculthorpe and Darren Cicala.              */
 /*  All rights reserved.                                                 */
 /*************************************************************************/
+
+#include <rtos_cfg.h>
+
+#if(RTOS_CFG_OS_MEM_ENABLED == RTOS_CONFIG_TRUE)
 
 /*************************************************************************/
 /*  Includes                                                             */
 /*************************************************************************/
 #include <memory.h>
-
-#include <sch_internal_IF.h>
+#include <memory_internal_IF.h>
+#include <sch_internal_IF.h> 
 #include <sch.h>
+
 
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
-#define MEM_U4_WATERMARK_SIZE (sizeof(U4))
+#define MEM_WATERMARK_SIZE    (2)
 #define MEM_WATERMARK_VAL     (0xF0)
+
 
 /*************************************************************************/
 /*  Global Variables, Constants                                          */
 /*************************************************************************/
-static OSMemBlock as_MemHeap[RTOS_CFG_MAX_NUM_MEM_BLOCKS];
+static OSMemPartition partitionList[MEM_MAX_NUM_PARTITIONS];
+
 
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
 /*************************************************************************/
+U1 u1_OSMem_findBlockSize(U1* blockStart, U1* err);
 
-U1 u1_MemMaintenance(void);
-U1 u1_FindHeapIndex(U1* pu1_BlockStart, U1* pu1_err);
 
 /*************************************************************************/
 /*  Public Functions                                                     */
 /*************************************************************************/
 
 /*************************************************************************/
-/*  Function Name: v_OSMemBlockInit                                      */
-/*  Purpose:       Add a memory block of the given size and number       */
-/*                 to the heap.                                          */
-/*  Arguments:     U1  u1_size:                                          */
-/*                     Desired memory amount to allocate.                */
-/*                 U1  u1_number:                                        */
-/*                     Number of blocks to create.                       */
-/*                 U1* pu1_err:                                          */
-/*                     Pointer variable for error code.                  */
-/*  Return:        void                                                  */
+/*  Function Name: u1_OSMem_PartitionInit                                */
+/*  Purpose:       Add a memory partition to the memory manager.         */
+/*  Arguments:     U1* partitionMatrix:                                  */
+/*                     Desired memory partition to allocate.             */
+/*                 U1  blockSize:                                        */
+/*                     Size of each block (number of matrix columns).    */
+/*                 U1  numBlocks:                                        */
+/*                     Number of matrix rows.                            */
+/*                 U1* err:                                              */
+/*                     Error variable. Can be one of the following:      */
+/*                     MEM_ERR_INVALID_SIZE_REQUEST, or                  */
+/*                     MEM_ERR_HIT_PARTITION_MAX, or                     */
+/*                     MEM_NO_ERROR                                      */
+/*  Return:        U1  numPartitions - 1                                 */
+/*                     Index of the newly allocated partition.           */
 /*************************************************************************/
-void v_OSMemBlockInit(U1 u1_size, U1 u1_number, U1 *pu1_err)
+U1 u1_OSMem_PartitionInit(U1* partitionMatrix, U1 blockSize, U1 numBlocks, U1 *err)
 {
-	/* loop iterators */
-	U1 u1_NumMemBlocksIterator   = 0;
-	U1 u1_WatermarkSizeIterator  = 0;
+	U1  blockIndex     = 0;
+	U1* tempBlockStart = NULL;
 	
-	/* this is the total amount of memory to allocate */
-	U1 u1_SizeWithWatermark      = u1_size + MEM_U4_WATERMARK_SIZE;
-	
-	/* loop for the user's desired amount of blocks of the given size */
-	for(u1_NumMemBlocksIterator = 0; u1_NumMemBlocksIterator < u1_number; u1_NumMemBlocksIterator++)
+	/* cant exceed the maximum block size or maximum number of blocks */
+	if(blockSize > MEM_MAX_BLOCK_SIZE ||
+		 numBlocks > MEM_MAX_NUM_BLOCKS)
 	{
-		if(u1_NumBlocksAllocated >= RTOS_CFG_MAX_NUM_MEM_BLOCKS)
+		*err = MEM_ERR_INVALID_SIZE_REQUEST;
+	}
+	/* we have a valid partition, so add its information to the list */
+	else
+	{
+		OS_SCH_ENTER_CRITICAL();
+		/* can't exceed the maximum number of partitions, needs to be critical because of the global variable */
+		if(numPartitionsAllocated == MEM_MAX_NUM_PARTITIONS)
 		{
-			*pu1_err = MEM_ERR_HEAP_OUT_OF_RANGE;
-			return;
+			*err = MEM_ERR_HIT_PARTITION_MAX;
 		}
+		else
+		{
+			tempBlockStart = partitionMatrix; // capture the matrix start as a temp variable
+			partitionList[numPartitionsAllocated].start           = partitionMatrix;
+			partitionList[numPartitionsAllocated].blockSize       = blockSize;
+			partitionList[numPartitionsAllocated].numBlocks       = numBlocks;
+			partitionList[numPartitionsAllocated].numActiveBlocks = 0;
+			
+			/* loop over each row of the matrix, and create a new memory block, and assign default properties */
+			for(blockIndex = 0; blockIndex < numBlocks; blockIndex++)
+			{
+				tempBlockStart += blockSize;
+				partitionList[numPartitionsAllocated].blocks[blockIndex].blockSize   = blockSize;
+				partitionList[numPartitionsAllocated].blocks[blockIndex].blockStatus = BLOCK_NOT_IN_USE;
+				partitionList[numPartitionsAllocated].blocks[blockIndex].start       = tempBlockStart;
+			}
+			numPartitionsAllocated++; // increment the partition tracker to indicate we added a new partition
+			*err = MEM_NO_ERROR;
+			
+			/* set the global largestBlockSize, slight runtime improvement later */
+			if(blockSize > largestBlockSize)
+			{
+				largestBlockSize = blockSize;
+			}
+			
+		}
+		OS_SCH_EXIT_CRITICAL();
+	}
+	return (numPartitionsAllocated - 1); // return the index of the partition we just added 
+}
+
+/*************************************************************************/
+/*  Function Name: pu1_OSMem_malloc                                      */
+/*  Purpose:       Find and return first available memory block.         */
+/*  Arguments:     U1  sizeRequested:                                    */
+/*                     Desired memory amount to allocate.                */
+/*                 U1* err:                                              */
+/*                     Error variable. Can be one of the following:      */
+/*                     MEM_ERR_INVALID_SIZE_REQUEST, or                  */
+/*                     MEM_ERR_MALLOC_NO_BLOCKS_AVAIL, or                */
+/*                     MEM_NO_ERROR                                      */
+/*  Return:        U1* Pointer to the allocated memory block, or         */
+/*                     NULL                                              */
+/*************************************************************************/
+U1* pu1_OSMem_malloc(U1 sizeRequested, U1* err)
+{
+	U1 partitionIndex = 0;
+	U1 blockIndex     = 0;
+	U1 byteIndex      = 0;
+	
+	/* check to see if the user requested more memory than possible */
+	if(sizeRequested > largestBlockSize)
+	{
+		*err = MEM_ERR_INVALID_SIZE_REQUEST;
+		return NULL;
+	}
+	
+	/* loop over all partitions */
+	for(partitionIndex = 0; partitionIndex < numPartitionsAllocated; partitionIndex++)
+	{
+		/* size requested should be smaller than the block size minus the watermark size */
+		if(sizeRequested > partitionList[partitionIndex].blockSize - MEM_WATERMARK_SIZE)
+		{
+			continue;
+		}
+		/* otherwise, valid partition found, so check to see if there are available blocks */
 		else
 		{
 			OS_SCH_ENTER_CRITICAL();
 			
-			/* initialize block parameters */
-			as_MemHeap[u1_NumBlocksAllocated].blockSize   = u1_size;
-			as_MemHeap[u1_NumBlocksAllocated].blockStatus = BLOCK_NOT_IN_USE;
-			as_MemHeap[u1_NumBlocksAllocated].start       = (U1*) malloc(u1_SizeWithWatermark * sizeof(U1));
-			
-			/* assign the last four bytes of the block to the watermarked value */
-			for(u1_WatermarkSizeIterator = 0; u1_WatermarkSizeIterator < MEM_U4_WATERMARK_SIZE; u1_WatermarkSizeIterator++)
-			{
-				as_MemHeap[u1_NumBlocksAllocated].start[u1_size + u1_WatermarkSizeIterator] = MEM_WATERMARK_VAL;
-			}
-			++u1_NumBlocksAllocated;
-			
-			/* set the global block size parameter */
-			if(u1_LargestBlockSize < u1_size)
-			{
-				u1_LargestBlockSize = u1_size;
-			}
-			else
-			{
-			}
-			
-			OS_SCH_EXIT_CRITICAL();
-		}
-	}
-	*pu1_err = MEM_NO_ERROR;
-}
-
-
-
-/*************************************************************************/
-/*  Function Name: pu1_OSMalloc                                          */
-/*  Purpose:       Find and return first available memory block.         */
-/*  Arguments:     U1  u1_size:                                          */
-/*                     Desired memory amount to allocate.                */
-/*                 U1* pu1_err:                                          */
-/*                     Pointer variable for error code.                  */
-/*  Return:        U1*     OR                                            */
-/*                       NULL                                            */
-/*************************************************************************/
-U1* pu1_OSMalloc(U1 u1_size, U1* pu1_err)
-{
-	U1 u1_HeapIndex;
-	
-	/* loop for the length of the memory heap */
-	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
-	{
-		/* enter a critical section here to make sure no other process or */
-		/* interrupt claims this block at the same time                   */
-		OS_SCH_ENTER_CRITICAL();
-		
-		/* check for block availability*/
-		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_NOT_IN_USE)
-		{
-			/* check to make sure the block is the proper size */
-			if(as_MemHeap[u1_HeapIndex].blockSize >= u1_size)
-			{
-				
-				/* set block status to true and return pointer to memblock */
-				as_MemHeap[u1_HeapIndex].blockStatus = BLOCK_IN_USE;
-				
-				OS_SCH_EXIT_CRITICAL();
-				
-				*pu1_err = MEM_NO_ERROR;
-				return as_MemHeap[u1_HeapIndex].start;
-			}
-			else
+			/* if there are no open blocks in this partition, go to the next partition */
+			if(partitionList[partitionIndex].numActiveBlocks == partitionList[partitionIndex].numBlocks)
 			{
 				OS_SCH_EXIT_CRITICAL();
 				continue;
 			}
-		}
-		else
-		{
-			OS_SCH_EXIT_CRITICAL();
-			continue;
-		}
-	}
-	/* no blocks available for the given size */
-	*pu1_err = MEM_ERR_MALLOC_NO_BLOCKS_AVAIL;
-	return NULL;
-}
-
-/*************************************************************************/
-/*  Function Name: pu1_OSCalloc                                          */
-/*  Purpose:       Find and return first available memory block for      */
-/*                 the specified size. Initialize all bytes to zero.     */
-/*  Arguments:     U1  u1_size:                                          */
-/*                     Desired memory amount to allocate.                */
-/*                 U1* pu1_err:                                          */
-/*                     Pointer variable for error code.                  */
-/*  Return:        U1*     OR                                            */
-/*                       NULL                                            */
-/*************************************************************************/
-U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err)
-{
-	U1 u1_HeapIndex    = 0;
-	U1 u1_ByteIndex    = 0;
-	U1 u1_MemBlockSize = 0;
-	
-	/* loop for the length of the memory heap */
-	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
-	{
-		/* enter a critical section here to make sure no other process or */
-		/* interrupt claims this block at the same time                   */
-		OS_SCH_ENTER_CRITICAL();
-		
-		/* check for block availability*/
-		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_NOT_IN_USE)
-		{
-			/* check to make sure the block is the proper size */
-			if(as_MemHeap[u1_HeapIndex].blockSize >= u1_size)
+			/* otherwise, loop for all blocks in this partition */
+			else
 			{
-				
-				/* set block status to true and return pointer to memblock */
-				as_MemHeap[u1_HeapIndex].blockStatus = BLOCK_IN_USE;
-				u1_MemBlockSize = as_MemHeap[u1_HeapIndex].blockSize;
-				
-				/* iterate through memblock and assign each value to zero */
-				for(u1_ByteIndex = 0; u1_ByteIndex < u1_MemBlockSize; u1_ByteIndex++)
+				for(blockIndex = 0; blockIndex < partitionList[partitionIndex].numBlocks; blockIndex++)
 				{
-					as_MemHeap[u1_HeapIndex].start[u1_ByteIndex] = 0;
+					/* if this block is not in use, it meets all the criteria, so return it */
+					if(partitionList[partitionIndex].blocks[blockIndex].blockStatus != BLOCK_IN_USE)
+					{
+						partitionList[partitionIndex].blocks[blockIndex].blockStatus = BLOCK_IN_USE;
+						
+						/* assign all bytes to the watermark value (garbage) because this isn't calloc */
+						for(byteIndex = 0; byteIndex < partitionList[partitionIndex].blockSize; byteIndex++)
+						{
+							partitionList[partitionIndex].blocks[blockIndex].start[byteIndex] = MEM_WATERMARK_VAL;
+						}
+						partitionList[partitionIndex].numActiveBlocks++;
+						OS_SCH_EXIT_CRITICAL();
+						
+						*err = MEM_NO_ERROR;
+						return partitionList[partitionIndex].blocks[blockIndex].start;
+					}
 				}
-				
-				OS_SCH_EXIT_CRITICAL();
-				*pu1_err = MEM_NO_ERROR;
-				return as_MemHeap[u1_HeapIndex].start;
 			}
+		}
+	}
+	/* if we made it here, there are no blocks available for the given size */
+	*err = MEM_ERR_MALLOC_NO_BLOCKS_AVAIL;
+	return NULL;
+}
+
+/*************************************************************************/
+/*  Function Name: pu1_OSMem_calloc                                      */
+/*  Purpose:       Return first available memory block, filled with 0's. */
+/*  Arguments:     U1  sizeRequested:                                    */
+/*                     Desired memory amount to allocate.                */
+/*                 U1* err:                                              */
+/*                     Error variable. Can be one of the following:      */
+/*                     MEM_ERR_INVALID_SIZE_REQUEST, or                  */
+/*                     MEM_ERR_MALLOC_NO_BLOCKS_AVAIL, or                */
+/*                     MEM_NO_ERROR                                      */
+/*  Return:        U1* Pointer to the allocated memory block, or         */
+/*                     NULL                                              */
+/*************************************************************************/
+U1* pu1_OSMem_calloc(U1 sizeRequested, U1* err)
+{
+	U1 partitionIndex = 0;
+	U1 blockIndex     = 0;
+	U1 byteIndex      = 0;
+	
+	/* check to see if the user requested more memory than possible */
+	if(sizeRequested > largestBlockSize)
+	{
+		*err = MEM_ERR_INVALID_SIZE_REQUEST;
+		return NULL;
+	}
+	
+	/* loop over all partitions */
+	for(partitionIndex = 0; partitionIndex < numPartitionsAllocated; partitionIndex++)
+	{
+		/* size requested should be smaller than the block size minus the watermark size */
+		if(sizeRequested > partitionList[partitionIndex].blockSize - MEM_WATERMARK_SIZE)
+		{
+			continue;
+		}
+		/* otherwise, valid partition found, so check to see if there are available blocks */
+		else
+		{
+			OS_SCH_ENTER_CRITICAL();
 			
-	    /* elses for standard compliance */
-			else
+			/* if there are no open blocks in this partition, go to the next partition */
+			if(partitionList[partitionIndex].numActiveBlocks == partitionList[partitionIndex].numBlocks)
 			{
 				OS_SCH_EXIT_CRITICAL();
 				continue;
 			}
-		}
-		else
-		{
-			OS_SCH_EXIT_CRITICAL();
-			continue;
+			/* loop for all blocks in this partition */
+			for(blockIndex = 0; blockIndex < partitionList[partitionIndex].numBlocks; blockIndex++)
+			{
+				/* if this block is not in use, it meets all the criteria, so return it */
+				if(partitionList[partitionIndex].blocks[blockIndex].blockStatus != BLOCK_IN_USE)
+				{
+					partitionList[partitionIndex].blocks[blockIndex].blockStatus = BLOCK_IN_USE;
+					
+					/* assign the last two bytes to the watermark value, and the rest to zeroes */
+					for(byteIndex = 0; byteIndex < partitionList[partitionIndex].blockSize; byteIndex++)
+					{
+						if(byteIndex > partitionList[partitionIndex].blockSize - MEM_WATERMARK_SIZE)
+						{
+							partitionList[partitionIndex].blocks[blockIndex].start[byteIndex] = MEM_WATERMARK_VAL;
+						}
+						else
+						{
+							partitionList[partitionIndex].blocks[blockIndex].start[byteIndex] = 0;
+						}
+					}
+					partitionList[partitionIndex].numActiveBlocks++;
+					OS_SCH_EXIT_CRITICAL();
+					
+					*err = MEM_NO_ERROR;
+					return partitionList[partitionIndex].blocks[blockIndex].start;
+				}
+			}
 		}
 	}
 	/* no blocks available for the given size */
-	*pu1_err = MEM_ERR_MALLOC_NO_BLOCKS_AVAIL;
+	*err = MEM_ERR_MALLOC_NO_BLOCKS_AVAIL;
 	return NULL;
 }
+
 /*************************************************************************/
-/*  Function Name: v_OSFree                                              */
+/*  Function Name: v_OSMem_free                                          */
 /*  Purpose:       Destroy the passed-in pointer and free the memblock.  */
-/*  Arguments:     U1** pu1_BlockStart:                                  */
+/*  Arguments:     U1** memToFree:                                       */
 /*                      Pointer to the memory contained in the memblock. */
-/*                 U1*  pu1_err:                                         */
-/*                      Pointer variable for error code.                 */
+/*                 U1*  err:                                             */
+/*                     Error variable. Can be one of the following:      */
+/*                     MEM_ERR_FREE_NOT_FOUND, or                        */
+/*                     MEM_NO_ERROR                                      */
 /*  Return:        void                                                  */
 /*************************************************************************/
-void v_OSFree(U1** pu1_BlockStart, U1* pu1_err)
+void v_OSMem_free(U1** memToFree, U1* err)
 {
-	U1 u1_LocalError = 0;
-	U1 u1_BlockIndex = 0;
+	U1 foundMemoryBlock = 0;
+	U1 partitionIndex = 0;
+	U1 blockIndex     = 0;
+	U1* blockStart    = NULL;
 	
 	/* find the block currently in use by the heap */
-	u1_BlockIndex = u1_FindHeapIndex(*pu1_BlockStart, &u1_LocalError);
-	
-	if(u1_LocalError == MEM_NO_ERROR)
+	for(partitionIndex = 0; partitionIndex < numPartitionsAllocated; partitionIndex++)
 	{
-		OS_SCH_ENTER_CRITICAL();
-		
-		/* free the memory block by clearing its block status */
-		as_MemHeap[u1_BlockIndex].blockStatus = BLOCK_NOT_IN_USE;
-	
-		OS_SCH_EXIT_CRITICAL();
-		
-		/* destroy the pointer and set the relevant error codes */
-		*pu1_BlockStart = NULL;
-		*pu1_err = MEM_NO_ERROR;
-		return;
+		U1 numBlocks = partitionList[partitionIndex].numBlocks;
+		for(blockIndex = 0; blockIndex < numBlocks; blockIndex++)
+		{
+			blockStart = partitionList[partitionIndex].blocks[blockIndex].start;
+			
+			/* compare the pointer address to see if they are te same */
+			if(*memToFree == blockStart)
+			{
+				OS_SCH_ENTER_CRITICAL();
+				
+				partitionList[partitionIndex].blocks[blockIndex].blockStatus = BLOCK_NOT_IN_USE;
+				*memToFree = NULL; // terminate the existing pointer 
+				*err = MEM_NO_ERROR;
+				foundMemoryBlock = 1;
+				
+				OS_SCH_EXIT_CRITICAL();
+				break;
+			}
+		}
+		/* runtime improvement: dont consider other partitions after we already freed the pointer */
+		if(foundMemoryBlock == 1)
+		{
+			break;
+		}
 	}
-	else
+	/* set an error if we never found the passed-in pointer */
+	if(foundMemoryBlock == 0)
 	{
-		*pu1_err = MEM_ERR_BLOCK_NOT_FOUND;
-		return;
+		*err = MEM_ERR_FREE_NOT_FOUND;
 	}
 }
 
 
 /*************************************************************************/
-/*  Function Name: pu1_OSRealloc                                         */
+/*  Function Name: pu1_OSMem_realloc                                     */
 /*  Purpose:       Free the current block and re-allocate a new block.   */
-/*  Arguments:     U1** pu1_OldPointer:                                  */
+/*  Arguments:     U1*  oldPointer:                                      */
 /*                      Pointer to memory to reallocate.                 */
-/*                 U1   u1_newSize:                                      */
+/*                 U1   newSize:                                         */
 /*                      Desired new size of the memblock.                */
-/*                 U1*  pu1_err:                                         */
-/*                      Pointer variable for error code.                 */
-/*  Return:        U1*                                                   */
+/*                 U1*  err:                                             */
+/*                      Error variable. Can be one of the following:     */
+/*                      MEM_ERR_INVALID_SIZE_REQUEST, or                 */
+/*                      MEM_ERR_REALLOC_GEN_FAULT, or                    */
+/*                      MEM_ERR_FREE_NOT_FOUND, or                       */
+/*                      MEM_ERR_BLOCK_NOT_FOUND, or                      */
+/*                      MEM_NO_ERROR                                     */
+/*  Return:        U1* Pointer to the allocated memory block, or         */
+/*                     NULL                                              */
 /*************************************************************************/
-U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
+U1* pu1_OSMem_realloc(U1* oldPointer, U1 newSize, U1* err)
 {
-	U1 u1_LocalError       = 0;
-	U1 u1_OldBlockIndex    = 0;
-	U1 u1_DataTransferIdx  = 0;
+	U1  localError          = 0;
+	U1  loopLength          = 0;
+	U1  byteIndex           = 0;	
+	U1* newPointer          = NULL;
+	
+	/* find size of old memory block */
+	U1 oldBlockSize = u1_OSMem_findBlockSize(oldPointer, &localError);
 	
 	/* case if the user requests a size zero */
-	if(u1_NewSize == 0)
+	if(newSize == 0)
 	{
 		/* free the old pointer and check for error */
-		v_OSFree(&pu1_OldPointer, &u1_LocalError);
-		if(u1_LocalError == MEM_NO_ERROR)
+		v_OSMem_free(&oldPointer, &localError);
+		if(localError == MEM_NO_ERROR)
 		{
-			*pu1_err = MEM_NO_ERROR;
+			*err = MEM_NO_ERROR;
 		}
 		else
 		{
-			*pu1_err = u1_LocalError;
+			*err = localError;
 		}
 		return NULL;
 	}
 	
-	/* case if the user requests a size outside of the possible range */
-	else if (u1_NewSize > u1_LargestBlockSize)
+	/* case if the user requests a size outside of the possible range, or the same size as the old block */
+	else if (  newSize > largestBlockSize
+		      || newSize == oldBlockSize)
 	{
-		/* just return an error */
-		*pu1_err = MEM_ERR_INVALID_SIZE_REQUEST;
+		/* just return an error, don't do anything to the old pointer */
+		*err = MEM_ERR_INVALID_SIZE_REQUEST;
 		return NULL;
 	}
-	
+		
 	/* case new size is valid */
 	else
 	{
 		/* first we try to allocate a new memory block */
-		U1* pu1_NewPointer = pu1_OSMalloc(u1_NewSize, &u1_LocalError);
+		newPointer = pu1_OSMem_malloc(newSize, &localError);
 		
 		/* next make sure there are no error codes */
-		if(  u1_LocalError == MEM_NO_ERROR 
-			&& pu1_NewPointer != NULL)
+		if(  localError == MEM_NO_ERROR 
+			&& newPointer != NULL)
 		{
-			/* begin transfer of memory from old block to new block */
-			/* find index of old memory block */
-			u1_OldBlockIndex = u1_FindHeapIndex(pu1_OldPointer, &u1_LocalError);
-			
-			/* compare new size and old size, determine which is bigger */
-			if(u1_LocalError == MEM_NO_ERROR)
+			/* choose the smallest of the two loop lengths */
+			if(newSize > oldBlockSize)
 			{
-				/* specific case where the user requests a smaller size than 
-				   the current allocation */
-				if(as_MemHeap[u1_OldBlockIndex].blockSize > u1_NewSize)
+				loopLength = oldBlockSize;
+			}
+			else
+			{
+				loopLength = newSize;
+			}
+			
+			OS_SCH_ENTER_CRITICAL();
+			/* begin transfer of memory from old block to new block */
+			for(byteIndex = 0; byteIndex < loopLength; byteIndex++)
+			{
+				if(byteIndex > (loopLength - MEM_WATERMARK_SIZE))
 				{
-					OS_SCH_ENTER_CRITICAL();
-					
-					for(u1_DataTransferIdx = 0; u1_DataTransferIdx < u1_NewSize; u1_DataTransferIdx++)
-					{
-						pu1_NewPointer[u1_DataTransferIdx] = pu1_OldPointer[u1_DataTransferIdx];
-					}
-					
-					OS_SCH_EXIT_CRITICAL();
-					/* free the old pointer, set a warning, and return the new pointer */
-					v_OSFree(&pu1_OldPointer, &u1_LocalError);
-					*pu1_err = MEM_WARN_REALLOC_SMALLER_BLOCK;
-					return pu1_NewPointer;
+					newPointer[byteIndex] = MEM_WATERMARK_VAL;
 				}
-				
-				/* most cases where the user wants more data than previously allocated */
+				else if (byteIndex > oldBlockSize)
+				{
+					newPointer[byteIndex] = MEM_WATERMARK_VAL;
+				}
 				else
 				{
-          OS_SCH_ENTER_CRITICAL();
-					
-					for(u1_DataTransferIdx = 0; u1_DataTransferIdx < as_MemHeap[u1_OldBlockIndex].blockSize; u1_DataTransferIdx++)
-					{
-						pu1_NewPointer[u1_DataTransferIdx] = pu1_OldPointer[u1_DataTransferIdx];
-					}
-					
-					OS_SCH_EXIT_CRITICAL();
-					
-					/* free the old pointer, set an error if any, and return the new pointer */
-					v_OSFree(&pu1_OldPointer, &u1_LocalError);
-					*pu1_err = u1_LocalError;
-					return pu1_NewPointer;
-				}									
+					newPointer[byteIndex] = oldPointer[byteIndex];
+				}
 			}
+			
+			OS_SCH_EXIT_CRITICAL();
+			v_OSMem_free(&oldPointer, &localError);
+			*err = localError;
+			return newPointer;
 		}
-		
-		/* else any error occurred in the allocation */
 		else
 		{
-			*pu1_err = MEM_ERR_REALLOC_NO_BLOCKS_AVAIL;
-			return pu1_OldPointer;
+			*err = localError;
+			return NULL;
 		}
 	}
-	*pu1_err = MEM_ERR_REALLOC_GEN_FAULT;
-	return pu1_OldPointer;
 }
 
 /*************************************************************************/
@@ -365,80 +426,105 @@ U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err)
 /*************************************************************************/
 
 /*************************************************************************/
-/*  Function Name: u1_FindHeapIndex                                      */
+/*  Function Name: u1_OSMem_findBlockSize                                */
 /*  Purpose:       Find the index of the memory block with the same      */
 /*                 passed in start pointer.                              */
-/*  Arguments:     U1* pu1_BlockStart:                                   */
-/*                     Pointer to find in the heap.                      */
-/*                 U1* pu1_err:                                          */
-/*                     Pointer variable for error code.                  */
-/*  Return:        U1                                                    */
+/*  Arguments:     U1* blockStart:                                       */
+/*                     Pointer to find in the partition list.            */
+/*                 U1* err:                                              */
+/*                      Error variable. Can be one of the following:     */
+/*                      MEM_ERR_INVALID_SIZE_REQUEST, or                 */
+/*                      MEM_NO_ERROR                                     */
+/*  Return:        U1  Size of the memory block. 255 if error.           */
 /*************************************************************************/
-U1 u1_FindHeapIndex(U1* pu1_BlockStart, U1* pu1_err)
+U1 u1_OSMem_findBlockSize(U1* blockStart, U1* err)
 {
-	U1 u1_HeapIndex = 0;
-	
+	U1 partitionIndex = 0;
+	U1 blockIndex     = 0;
 	/* loop through the structure and find the index */
-	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
+	for(partitionIndex = 0; partitionIndex < numPartitionsAllocated; partitionIndex++)
 	{
-		if(as_MemHeap[u1_HeapIndex].blockStatus == BLOCK_IN_USE)
+		OSMemPartition tempPartition = partitionList[partitionIndex];
+		for(blockIndex = 0; blockIndex < tempPartition.numBlocks; blockIndex++)
 		{
-			/* return the current index if the pointers match */
-			if(as_MemHeap[u1_HeapIndex].start == pu1_BlockStart)
+			if(blockStart == tempPartition.blocks[blockIndex].start)
 			{
-				*pu1_err = MEM_NO_ERROR;
-				return u1_HeapIndex;
+				*err = MEM_NO_ERROR;
+				return tempPartition.blockSize - 2;
 			}
 			else
 			{
-				continue;
 			}
-		}
-		else
-		{
-			continue;
 		}
 	}
 	/* otherwise, set an error code and return 255 */
-	*pu1_err = MEM_ERR_BLOCK_NOT_FOUND;
+	*err = MEM_ERR_BLOCK_NOT_FOUND;
 	return 255;
 }
 
 /*************************************************************************/
-/*  Function Name: u1_MemMaintenance                                     */
+/*  Function Name: u1_OSMem_maintenance                                  */
 /*  Purpose:       Check the status of all the memblocks to ensure that  */
 /*                 the user hasn't overwritten any of the watermarks.    */
 /*  Arguments:     None.                                                 */
 /*  Return:        MEM_MAINT_NO_ERROR (0) or                             */
 /*                 MEM_MAINT_ERROR    (1)                                */
 /*************************************************************************/
-U1 u1_MemMaintenance()
+U1 u1_OSMem_maintenance()
 {
 	/* local variables */
-	U1 u1_HeapIndex        = 0;
-	U1 u1_WatermarkIndex   = 0;
-	U1 u1_CurrentBlockSize = 0;
+	U1 partitionIndex   = 0;
+	U1 blockIndex       = 0;
+	U1 watermarkIndex   = 0;
+	U1 currentBlockSize = 0;
 	
-	/* iterate through the heap */
-	for(u1_HeapIndex = 0; u1_HeapIndex < u1_NumBlocksAllocated; u1_HeapIndex++)
+	/* iterate through the list of partitions */
+	for(partitionIndex = 0; partitionIndex < numPartitionsAllocated; partitionIndex++)
 	{
-		u1_CurrentBlockSize = as_MemHeap[u1_HeapIndex].blockSize + MEM_U4_WATERMARK_SIZE;
+		currentBlockSize = partitionList[partitionIndex].blockSize;
 		
-		/* iterate through the trailing watermarks at the end of the memory block*/
-		for(u1_WatermarkIndex = u1_CurrentBlockSize; u1_WatermarkIndex < u1_CurrentBlockSize; u1_WatermarkIndex++)
+		/* iterate through all of the blocks */
+		for(blockIndex = 0; blockIndex < partitionList[partitionIndex].numBlocks; blockIndex++)
 		{
-			/* each watermark should be 0xF0 */
-			if(as_MemHeap[u1_HeapIndex].start[u1_WatermarkIndex] != MEM_WATERMARK_VAL)
+			if(partitionList[partitionIndex].blocks[blockIndex].blockStatus == BLOCK_IN_USE)
 			{
-				return MEM_MAINT_ERROR; 
+				OSMemBlock tempBlock = partitionList[partitionIndex].blocks[blockIndex];
+				for(watermarkIndex = (currentBlockSize - MEM_WATERMARK_SIZE); watermarkIndex < currentBlockSize; watermarkIndex++)
+				{
+					if(tempBlock.start[watermarkIndex] != MEM_WATERMARK_VAL)
+					{
+						return MEM_MAINT_ERROR;
+					}
+					else
+					{
+					}
+				}
 			}
 			else
 			{
-				continue;
 			}
 		}
 	}
 	return MEM_MAINT_NO_ERROR;
 }
 
-/******************************* end file ********************************/
+#endif /* conditional compile */
+
+/***********************************************************************************************/
+/* History                                                                                     */
+/***********************************************************************************************/
+/* Version            Date        Description                                                  */
+/*                                                                                             */
+/* 0.1                08/14/19    Initial commit.                                              */
+/*                                                                                             */
+/* 0.2                08/19/19    Implemented realloc function.                                */
+/*                                                                                             */
+/* 0.3                08/24/19    Fixed bugs w/free and init. Added maintenance function.      */
+/*                                                                                             */
+/* 0.4                08/25/19    Fixed bug with realloc where pointer would get destroyed.    */
+/*                                                                                             */
+/* 1.0                08/26/19    Reorganized memory module according to standard.             */
+/*                                                                                             */
+/* 1.1                09/04/19    Fixed warnings at compile time.                              */
+/*                                                                                             */
+/* 2.0                02/22/20    Rewrite to remove malloc syscall references.                 */

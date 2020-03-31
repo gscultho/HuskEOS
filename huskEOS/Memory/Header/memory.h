@@ -7,41 +7,44 @@
 /*************************************************************************/
 
 #ifndef memory_h
+#if(RTOS_CFG_OS_MEM_ENABLED == RTOS_CONFIG_TRUE)
 #define memory_h
 
 /*************************************************************************/
 /*  Includes                                                             */
 /*************************************************************************/
 
-#include "memory_internal_IF.h"
+#include "rtos_cfg.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
 
-
 /* API Error Codes */
 #define MEM_NO_ERROR                     (0)   // system working properly
-#define MEM_ERR_MALLOC_NO_BLOCKS_AVAIL   (1)   // no blocks available when attempting a malloc for a given size
-#define MEM_ERR_BLOCK_NOT_FOUND          (2)   // passed in ptr to OSFree could not be found in the list
-#define MEM_ERR_REALLOC_NO_BLOCKS_AVAIL  (3)   // no blocks available when attempting a realloc
+#define MEM_ERR_MALLOC_NO_BLOCKS_AVAIL   (1)   // no blocks available when attempting to allocate memory for a given size
+#define MEM_ERR_FREE_NOT_FOUND           (2)   // passed in ptr to OSFree could not be found in the list
+#define MEM_ERR_REALLOC_NO_BLOCKS_AVAIL  (3)   // no blocks of the targeted size available when attempting a realloc
 #define MEM_ERR_INVALID_SIZE_REQUEST     (4)   // user attempted to request invalid size (larger than largest block, or negative)
 #define MEM_ERR_REALLOC_GEN_FAULT        (5)   // generic realloc error occurred (this SHOULD never happen)
-#define MEM_ERR_HEAP_OUT_OF_RANGE        (255) // the user attempted to add more blocks than the maximum number of blocks
-
-/* API Warning Codes */
-#define MEM_WARN_REALLOC_SMALLER_BLOCK   (100) // warning set when the user reallocates a smaller block (could cause data loss)
+#define MEM_ERR_BLOCK_NOT_FOUND          (6)   // when searching for a block using findBlockSize, the pointer passed in was not found
+#define MEM_ERR_HIT_PARTITION_MAX        (255) // the user attempted to add more blocks than the maximum number of blocks
 
 /* Maintenance Error Codes */
 #define MEM_MAINT_NO_ERROR               (0)   // user has not overwritten the watermarks (=0xF0)
 #define MEM_MAINT_ERROR                  (1)   // user has overwritten the watermarks (!=0xF0)
+
+#define MEM_MAX_NUM_PARTITIONS           (RTOS_CFG_MAX_NUM_MEM_PARTITIONS)
+#define MEM_MAX_NUM_BLOCKS               (RTOS_CFG_MAX_NUM_MEM_BLOCKS)
+#define MEM_MAX_BLOCK_SIZE               (RTOS_CFG_MAX_MEM_BLOCK_SIZE)
 
 
 /*************************************************************************/
 /*  Data Types                                                           */
 /*************************************************************************/
 
-typedef struct Block OSMemBlock;
+typedef struct Block     OSMemBlock;
+typedef struct Partition OSMemPartition;
 
 /*************************************************************************/
 /*  Public Functions                                                     */
@@ -110,10 +113,14 @@ void v_OSFree(U1** pu1_BlockStart, U1* pu1_err);
 /*************************************************************************/
 U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err);
 
+
 /*************************************************************************/
 /*  Global Variables                                                     */
 /*************************************************************************/
+#else
+#warning "MEMORY MODULE NOT ENABLED"
 
+#endif
 #endif
 
 /******************************* end file ********************************/
