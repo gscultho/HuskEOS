@@ -25,11 +25,9 @@
 
 /* API error codes */
 #define FIFO_ERR_NO_ERROR                    (0)
-#define FIFO_ERR_NO_QUEUE_AVAILABLE          (3)
 #define FIFO_ERR_QUEUE_OUT_OF_RANGE          (255)
 #define FIFO_ERR_QUEUE_FULL                  (1)
-#define FIFO_ERR_QUEUE_EMPTY                 (1)
-#define FIFO_ERR_QUEUE_IN_USE                (2)
+#define FIFO_ERR_QUEUE_EMPTY                 (2)
 
 /*************************************************************************/
 /*  Data Types                                                           */
@@ -73,8 +71,8 @@ U1 u1_OSqueue_flushFifo(U1 queueNum, U1* error);
 /*                     Sleep timeout period if task is blocked.          */
 /*                 U1* error:                                            */
 /*                     Address to write error to.                        */
-/*  Return:        Q_MEM FIFO_FAILURE         OR                         */
-/*                       Q_MEM_t_data                                    */
+/*  Return:        Q_MEM FIFO_FAILURE            OR                      */
+/*                       data at head of queue.                          */
 /*************************************************************************/
 Q_MEM data_OSqueue_get(U1 queueNum, U4 blockPeriod, U1* error);
 
