@@ -280,7 +280,7 @@ void vd_OSsch_start(void)
 /*************************************************************************/
 U1 u1_OSsch_interruptEnter(void)
 {
-  #if(RTOS_CONFIG_PRESLEEP_FUNC == RTOS_CONFIG_TRUE)
+#if(RTOS_CONFIG_PRESLEEP_FUNC == RTOS_CONFIG_TRUE)
   if(u1_s_sleepState == (U1)SCH_CPU_SLEEPING)
   {  
     /* Post-sleep hook function defined by application */
@@ -482,6 +482,7 @@ U1 u1_OSsch_setNewPriority(struct Sch_Task* tcb, U1 newPriority)
   
   OS_CPU_ENTER_CRITICAL();
   
+  /* If task is suspended or sleeping then simply change priority. */
   if(tcb->flags & (U1)SCH_TASK_FLAG_STS_CHECK)
   {
     u1_t_prevPrio = tcb->priority;
@@ -609,6 +610,7 @@ void vd_OSsch_taskWake(U1 taskID)
     {
       OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += (u1_cpu_getPercentOfTick() - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
     }
+    else {}
 #endif
     
     /* Remove task from wait list */
@@ -807,7 +809,7 @@ static void vd_OSsch_periodicScheduler(void)
   ListNode* node_t_p_changeListNode;
   Sch_Task* tcb_t_p_currentTCB;
   
-  if(node_s_p_headOfWaitList == NULL)
+  if(node_s_p_headOfWaitList == (ListNode*)NULL)
   {
     /* No tasks to process. Return immediately. */  
   }
