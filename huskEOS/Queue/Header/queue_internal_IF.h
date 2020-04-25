@@ -46,13 +46,13 @@ Queue;
 /*  Function Name: vd_OSqueue_blockedTaskTimeout                         */
 /*  Purpose:       Update block list if a task times out on its block.   */
 /*                 Called internally by scheduler.                       */
-/*  Arguments:     void* queueAddr                                       */
+/*  Arguments:     Queue* queueAddr                                      */
 /*                    Address of queue structure.                        */
 /*                 Sch_Task* taskTCB:                                    */
 /*                    TCB address of blocked task.                       */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_OSqueue_blockedTaskTimeout(void* queueAddr, struct Sch_Task* taskTCB);
+void vd_OSqueue_blockedTaskTimeout(Queue* queueAddr, struct Sch_Task* taskTCB);
 
 
 /*************************************************************************/
