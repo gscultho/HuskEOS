@@ -31,7 +31,6 @@ typedef signed long    S8;
 #define STACK_DESCENDING              (0)
 #define STACK_ASCENDING               (1)
 #define OS_STACK                      OS_UWORD
-#define CPU_BUS_WORD_SIZE             (32)
 #define STACK_GROWTH                  (STACK_DESCENDING)
 
 /* General */
