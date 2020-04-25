@@ -478,20 +478,20 @@ U4 u4_OSqueue_getNumInFIFO(U1 queueNum, U1* error)
 /*  Function Name: vd_OSqueue_blockedTaskTimeout                         */
 /*  Purpose:       Update block list if a task times out on its block.   */
 /*                 Called internally by scheduler.                       */
-/*  Arguments:     void* queueAddr                                       */
+/*  Arguments:     Queue* queueAddr                                      */
 /*                    Address of queue structure.                        */
 /*                 Sch_Task* taskTCB:                                    */
 /*                    TCB address of blocked task.                       */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_OSqueue_blockedTaskTimeout(void* queueAddr, struct Sch_Task* taskTCB)
+void vd_OSqueue_blockedTaskTimeout(Queue* queueAddr, struct Sch_Task* taskTCB)
 {
   ListNode* node_t_tempPtr;
   
   OS_SCH_ENTER_CRITICAL();
   
   /* Remove node from block list and clear its contents */
-  node_t_tempPtr      = node_list_removeNodeByTCB((&((OSQueue*)queueAddr)->blockedTaskList.blockedListHead), taskTCB);
+  node_t_tempPtr      = node_list_removeNodeByTCB((&(queueAddr)->blockedTaskList.blockedListHead), taskTCB);
   node_t_tempPtr->TCB = QUEUE_NULL_PTR;
   
   OS_SCH_EXIT_CRITICAL();
