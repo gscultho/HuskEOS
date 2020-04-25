@@ -35,7 +35,7 @@ extern void OSTaskFault(void);
 /*************************************************************************/
 /*  Static Global Variables, Constants                                   */
 /*************************************************************************/
-static Mutex mutex_s_mutexList[MUTEX_NUM_MUTEXES];
+static Mutex mutex_s_mutexList[MUTEX_NUM_MUTEXES]; //TODO: Not needed 
   
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
@@ -171,12 +171,13 @@ U1 u1_OSmutex_check(OSMutex* mutex)
 {
   U1 u1_t_sts;
   
+  u1_t_sts = (U1)MUTEX_TAKEN;
+  
   OS_SCH_ENTER_CRITICAL();
   
   switch (mutex->lock)
   {  
     case (U1)MUTEX_TAKEN:
-      u1_t_sts = (U1)MUTEX_TAKEN;
       break;
     
     case (U1)MUTEX_SUCCESS:
@@ -327,7 +328,8 @@ static void vd_OSmutex_blockTask(OSMutex* mutex)
     vd_list_addTaskByPrio(&(mutex->blockedTaskList.blockedListHead), &(mutex->blockedTaskList.blockedTasks[u1_t_index]));
     
     /* If the blocking task's priority is greater (numerically lower) than the mutex holder's current priority, update the inherited priority. */
-    if((mutex->blockedTaskList.blockedListHead->TCB->priority != mutex->priority.taskInheritedPrio) && (mutex->blockedTaskList.blockedListHead->TCB->priority < mutex->priority.mutexHolder->priority))
+    if((mutex->blockedTaskList.blockedListHead->TCB->priority != mutex->priority.taskInheritedPrio) 
+      && (mutex->blockedTaskList.blockedListHead->TCB->priority < mutex->priority.mutexHolder->priority))
     {
       /* Notify scheduler of change. */
       u1_t_priorityOriginal = u1_OSsch_setNewPriority(mutex->priority.mutexHolder, mutex->blockedTaskList.blockedListHead->TCB->priority);
@@ -368,7 +370,7 @@ static void vd_OSmutex_unblockTask(OSMutex* mutex)
   
   /* If task holding mutex had inherited priority, restore original priority. */
   if(mutex->priority.taskInheritedPrio != (U1)MUTEX_DEFAULT_PRIO)
-  {
+  { //throw away return value
     (void)u1_OSsch_setNewPriority(mutex->priority.mutexHolder, mutex->priority.taskRealPrio);
     mutex->priority.taskInheritedPrio = (U1)MUTEX_DEFAULT_PRIO;
   }
@@ -400,4 +402,6 @@ static void vd_OSmutex_unblockTask(OSMutex* mutex)
 /*                                                                                             */
 /* 0.1                8/19/19     Module implemented for first time.                           */
 /*                                                                                             */
-
+/* 0.2                1/2/2020    Mutex objects being declared twice (by app and by module)    */
+/*                                due to leftover behavior of baseline (old sempaphore module).*/
+/*                                Declaration by mutex module removed.                         */
