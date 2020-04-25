@@ -3,14 +3,14 @@ Real-Time Operating System
 
 ## General Information
  * Priority-based preemptive scheduler. 
+ * Counting/binary semaphores, mutexes, queues, mailboxes, flags, and dynamic memory emulator. All primitives and resources support   
+   optional thread blocking. 
  * 2.3 - 6KB flash footprint. 
- * Originally developed for Arm Cortex-M4 based MCU.
- * All memory statically allocated, no need for heap. Memory module supports "dynamic" memory emulation. 
- * Entire OS is hardware-agnostic aside from a small OS/CPU interface layer for porting. Application calls to hardware-dependent
-   services are mapped through OS/CPU interface.  
- * Public modules designed to have similar API functionality and naming conventions for ease of use. 
+ * All memory statically allocated, no need for heap. 
+ * Entire OS is hardware-agnostic aside from an internal OS/CPU interface layer for porting. Can use same application code for different 
+   ports.  
+ * Public modules designed to have consistent API structures and naming conventions for ease of use. 
  * Stack overflow detection supported for each task with configurable fault handlers. 
- * Configured Keil project included in repository. 
  
 ## Repository and Contact Information
 
@@ -42,8 +42,7 @@ Real-Time Operating System
   
  * ### Memory
    * Emulates dynamic memory allocation. Allocates blocks of configurable size for use by application.   
-   * Overflow/underflow (outside of memory block) detection supported.  
-   * Work in progress at this time. 
+   * Overflow/underflow (outside of memory block) detection supported.   
   
  * ### Semaphore
    * Designed for counting and signaling purposes. For mutual exclusion see Mutex.    
