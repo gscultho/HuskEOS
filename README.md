@@ -3,7 +3,7 @@ Real-Time Operating System
 
 ## General Information
  * Priority-based preemptive scheduler. 
- * Counting/binary semaphores, mutexes, queues, mailboxes, flags, and dynamic memory emulator. All primitives and resources support   optional thread blocking. 
+ * Counting/binary semaphores, mutexes, queues, mailboxes, flags, and dynamic memory emulator. All primitives and resources support   optional thread blocking with deterministic priority-based waking policy. 
  * 2.3 - 6KB flash footprint. 
  * All memory statically allocated, no need for heap. 
  * Entire OS is hardware-agnostic aside from an internal OS/CPU interface layer for porting. Can use same application code for different ports.  
