@@ -23,9 +23,9 @@ struct Sch_Task; /* Forward declaration. See definition in sch_internal_IF.h */
 
 typedef struct ListNode
 {
-  struct ListNode* nextNode;
-  struct ListNode* previousNode;
-  struct Sch_Task* TCB;
+  struct ListNode* nextNode;     /* Next */
+  struct ListNode* previousNode; /* Prev */
+  struct Sch_Task* TCB;          /* Data */
 } 
 ListNode;
 
