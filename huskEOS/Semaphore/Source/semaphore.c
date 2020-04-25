@@ -30,7 +30,7 @@
 /*************************************************************************/
 /*  Static Global Variables, Constants                                   */
 /*************************************************************************/
-static Semaphore sema_s_semaList[SEMA_NUM_SEMAPHORES];
+static Semaphore sema_s_semaList[SEMA_NUM_SEMAPHORES]; 
   
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
