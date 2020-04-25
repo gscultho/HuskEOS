@@ -9,6 +9,7 @@ Real-Time Operating System
  * Entire OS is hardware-agnostic aside from an internal OS/CPU interface layer for porting. Can use same application code for different ports.  
  * Public modules designed to have consistent API structures and naming conventions for ease of use. 
  * Stack overflow detection supported for each task with configurable fault handlers. 
+ * Runtime data collected for debugging (can be configured off for less overhead).
  
 ## Repository and Contact Information
 
