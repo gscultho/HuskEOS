@@ -62,4 +62,9 @@ Real-Time Operating System
    * In design stage for supporting symmetric multiprocessing with optional core affinity. 
    * HuskEOS should presently be able to run in an asymmetric multiprocessing architecture on any number of cores, although this needs 
      to be tested. 
+   * Port will be for STM32H747 and STM32H757 (240MHz ARM Cortex-M4 + 480MHz ARM Cortex-M7).
+ * Port for TI TMS320F28335 Digital Signal Controller (150 MHz C2000 DSP).
  * Memory module is currently being tested before final source is pushed. 
+ 
+ ## Current Ports
+  * TI TM4C123GH6PM (80MHz ARM Cortex-M4)
