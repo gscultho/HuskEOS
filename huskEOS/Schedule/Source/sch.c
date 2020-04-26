@@ -893,7 +893,7 @@ static void vd_OSsch_background(void)
     }
 #endif
 #if(RTOS_CFG_OS_MEM_ENABLED == RTOS_CONFIG_TRUE)
-    if(u1_MemMaintenance())
+    if(u1_OSMem_maintenance())
     {
       OSTaskFault();
     }
