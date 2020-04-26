@@ -2,7 +2,7 @@
 /* Starter app file for OS with three threads set up to run. Include     */
 /* header files from other OS modules to use them and create new threads */
 /* by following the code below for reference. All module design and API  */
-/* information can be found in documetnation in repository.              */
+/* information can be found in documentation in repository.              */
 /*************************************************************************/
 
 /* OS includes */
