@@ -1,7 +1,7 @@
 /*************************************************************************/
 /*  File Name: cpu_os_interface.c                                        */
 /*  Purpose: APIs for scheduler to interface with hardware.              */
-/*  Compiler: ARM C/C++ Compiler, 5.03 [Build 76]                        */
+/*  Compiler: ARM C/C++ Compiler, V5.06 [Build 750]                      */
 /*  Created by: Garrett Sculthorpe on 2/12/19.                           */
 /*  Copyright © 2019 Garrett Sculthorpe and Darren Cicala.               */
 /*              All rights reserved.                                     */
@@ -123,6 +123,8 @@ OS_STACK* sp_cpu_taskStackInit(void (*newTaskFcn)(void), OS_STACK* sp)
 /*************************************************************************/
 #pragma push
 #pragma O0
+#pragma diag_suppress 3731 /* __ldrex and __strex instrinsics deprecated since ARMCC compiler does not guarantee the order of the load/store instructions. 
+                              The order is thus preserved by disabling optimization for this section of code and the instrinsics can be safely used. */
 void vd_cpu_disableInterrupts(void)
 {
   U1 u1_t_newIntNestCntr;
@@ -145,6 +147,8 @@ void vd_cpu_disableInterrupts(void)
 /*************************************************************************/
 #pragma push
 #pragma O0
+#pragma diag_suppress 3731 /* __ldrex and __strex instrinsics deprecated since ARMCC compiler does not guarantee the order of the load/store instructions. 
+                              The order is thus preserved by disabling optimization for this section of code and the instrinsics can be safely used. */
 void vd_cpu_enableInterrupts(void)
 {
   U1 u1_t_newIntNestCntr;
@@ -293,4 +297,6 @@ static void vd_cpu_sysTickSet(U4 numMs)
 /* 0.4                5/30/19     Added APIs for handling interrupt enabling/masking           */ 
 /* 0.5                6/22/19     API for CPU load calculation support.                        */
 /*                                                                                             */
+/* 0.6                5/3/20      Suppressed warnings for __ldrex and strex instrinsics in     */
+/*                                ARMCC compiler V5.06.                                        */
 /*                                                                                             */
