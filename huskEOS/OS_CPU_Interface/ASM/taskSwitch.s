@@ -4,19 +4,19 @@
 ;*  Assembler: ARM Assembler, 5.03                                       */
 ;*  Created by: Garrett Sculthorpe on 2/29/19.                           */
 ;*  Copyright © 2019 Garrett Sculthorpe. All rights reserved.            */
+;*              All rights reserved.                                     */
 ;*************************************************************************/
 
+    
         EXTERN  tcb_g_p_currentTaskBlock
         EXTERN  tcb_g_p_nextTaskBlock
 
 ;******************************************************************************
-; Variables            
+;Allocate Variables            
 ;******************************************************************************
         AREA |.data|, DATA, READWRITE 
         ALIGN
 
-;******************************************************************************
-; Code            
 ;******************************************************************************
 
         AREA |.TEXT|, CODE, READONLY, ALIGN=3
@@ -63,7 +63,7 @@ PendSV_Handler PROC
             
 ;******************************************************************************
 ;
-; Useful functions. Taken from startup.s provided by Texas Instruments.
+; Useful functions. 
 ;
 ;******************************************************************************
         EXPORT  WaitForInterrupt
