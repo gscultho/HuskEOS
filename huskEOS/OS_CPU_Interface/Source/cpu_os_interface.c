@@ -102,12 +102,12 @@ OS_STACK* sp_cpu_taskStackInit(void (*newTaskFcn)(void), OS_STACK* sp)
   os_t_p_stackFrame = sp;
   
   /* Decrement to move upwards in stack */
-  os_t_p_stackFrame[ZERO]                = (U4)STACK_FRAME_PSR_INIT; 
-  os_t_p_stackFrame[PSR_REGISTER_SLOT]   = (U4)newTaskFcn;
+  os_t_p_stackFrame[ZERO]                = (OS_STACK)STACK_FRAME_PSR_INIT; 
+  os_t_p_stackFrame[PSR_REGISTER_SLOT]   = (OS_STACK)newTaskFcn;
   
   for(s1_t_index = (S1)GENERAL_PURPOSE_REG_START; s1_t_index > (S1)END_OF_REG_STACK_FRAME; --s1_t_index)
   {
-    os_t_p_stackFrame[s1_t_index] = (U4)ZERO;
+    os_t_p_stackFrame[s1_t_index] = (OS_STACK)ZERO;
   }
   
    os_t_p_sp = &os_t_p_stackFrame[s1_t_index + ONE]; /* index is -16 at this point, want -15 */
