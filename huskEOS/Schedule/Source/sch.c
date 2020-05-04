@@ -75,7 +75,7 @@ extern void OSTaskFault(void);
 #define SCH_TASK_PRIORITY_UNDEFINED              (0xFF)
 #define SCH_TASK_LOWEST_PRIORITY                 (0xF0)
 #define SCH_INVALID_TASK_ID                      (0xFF)
-#define SCH_BG_TASK_ID                           (0x00)
+#define SCH_BG_TASK_ID                           (SCH_MAX_NUM_TASKS - 1)
 #define SCH_NULL_PTR                             ((void*)ZERO)
 #define SCH_MAX_NUM_TICK                         (4294967200U)
 
@@ -203,7 +203,8 @@ void vd_OS_init(U4 numMsPeriod)
 /*                       Unique priority level for task. 0 = highest.    */
 /*                 U1 taskID:                                            */
 /*                       Task ID to refer to task when using APIs (cannot*/
-/*                       be changed).                                    */
+/*                       be changed). Value must be between 0 and the    */
+/*                       total number of application tasks - 1.          */
 /*                                                                       */
 /*  Return:        SCH_TASK_CREATE_SUCCESS   OR                          */
 /*                 SCH_TASK_CREATE_DENIED                                */
@@ -985,3 +986,5 @@ static U1 u1_sch_checkStack(U1 taskIndex)
 /* 2.2                8/19/19     Fixed minor bugs in CPU load calculation.                    */
 /*                                                                                             */
 /* 2.3                8/27/19     Integrated memory module.                                    */
+/* 2.4                5/3/20      Changed SCH_BG_TASK_ID from ZERO to (SCH_MAX_NUM_TASKS - 1)  */
+/*                                to so that task ID zero is available (to match priorities).  */
