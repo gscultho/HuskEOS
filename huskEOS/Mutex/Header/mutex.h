@@ -10,11 +10,13 @@
 #if(RTOS_CFG_OS_MUTEX_ENABLED == RTOS_CONFIG_TRUE)
 #define mutex_h
 
+#include "rtos_cfg.h"
 
 /*************************************************************************/
 /*  Definitions                                                          */
 /*************************************************************************/
 #define MUTEX_SUCCESS              (1)
+#define MUTEX_AVAILABLE            (1)
 #define MUTEX_TAKEN                (0)  
 #define MUTEX_NO_OBJECTS_AVAILABLE (0)
 #define MUTEX_NOT_HELD_BY_TASK     (0)
