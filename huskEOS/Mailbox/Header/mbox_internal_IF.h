@@ -22,7 +22,7 @@
 /*************************************************************************/
 typedef struct Mailbox
 {
-  MAIL mail;             /* Holds data */
+  MAIL mail;             /* Holds data. */
   U1   blockedTaskID;    /* If a task is blocked on mailbox, its ID is stored here. */
 }
 Mailbox;
