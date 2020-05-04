@@ -93,7 +93,8 @@ void vd_OS_init(U4 numMsPeriod);
 /*                       Unique priority level for task. 0 = highest.    */
 /*                 U1 taskID:                                            */
 /*                       Task ID to refer to task when using APIs (cannot*/
-/*                       be changed).                                    */
+/*                       be changed). Value must be between 0 and the    */
+/*                       total number of application tasks - 1.          */
 /*                                                                       */
 /*  Return:        SCH_TASK_CREATE_SUCCESS   OR                          */
 /*                 SCH_TASK_CREATE_DENIED                                */
