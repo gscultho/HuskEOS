@@ -35,7 +35,7 @@ extern void OSTaskFault(void);
 /*************************************************************************/
 /*  Static Global Variables, Constants                                   */
 /*************************************************************************/
-static Mutex mutex_s_mutexList[MUTEX_NUM_MUTEXES]; //TODO: Not needed 
+static Mutex mutex_s_mutexList[MUTEX_NUM_MUTEXES]; 
   
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
@@ -137,7 +137,7 @@ U1 u1_OSmutex_lock(OSMutex* mutex, U4 blockPeriod)
       /* Check again after task wakes up */
       OS_SCH_ENTER_CRITICAL();
       
-      if(mutex->lock) /* If available */
+      if(mutex->lock == MUTEX_AVAILABLE) /* If available */
       {
         --(mutex->lock);      
         mutex->priority.mutexHolder = SCH_CURRENT_TCB_ADDR;    
@@ -329,7 +329,8 @@ static void vd_OSmutex_blockTask(OSMutex* mutex)
     
     /* If the blocking task's priority is greater (numerically lower) than the mutex holder's current priority, update the inherited priority. */
     if((mutex->blockedTaskList.blockedListHead->TCB->priority != mutex->priority.taskInheritedPrio) 
-      && (mutex->blockedTaskList.blockedListHead->TCB->priority < mutex->priority.mutexHolder->priority))
+      && (mutex->blockedTaskList.blockedListHead->TCB->priority < mutex->priority.mutexHolder->priority)
+      && (mutex->priority.mutexHolder != MUTEX_NULL_PTR))
     {
       /* Notify scheduler of change. */
       u1_t_priorityOriginal = u1_OSsch_setNewPriority(mutex->priority.mutexHolder, mutex->blockedTaskList.blockedListHead->TCB->priority);
@@ -404,4 +405,11 @@ static void vd_OSmutex_unblockTask(OSMutex* mutex)
 /*                                                                                             */
 /* 0.2                1/2/2020    Mutex objects being declared twice (by app and by module)    */
 /*                                due to leftover behavior of baseline (old sempaphore module).*/
-/*                                Declaration by mutex module removed.                         */
+/*                                                                                             */
+/* 0.3                5/4/2020    Added extra check before initiating priority inheritance. The*/
+/*                                module now checks that the mutex is held by another task     */
+/*                                before making function call to scheduler to raise priority.  */
+/*                                Tecnically this is not a bug since it only presents an issue */
+/*                                if the application uses the lock/unlock functions in an      */
+/*                                incorrect sequence, or it initializes a mutex to an          */
+/*                                unintended value.                                            */
