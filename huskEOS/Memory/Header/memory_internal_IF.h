@@ -50,8 +50,6 @@ U1 u1_OSMem_maintenance(void);
 /*************************************************************************/
 /*  Global Variables                                                     */
 /*************************************************************************/
-static U1         numPartitionsAllocated = 0;   // the current number of partitions allocated. Cannot exceed RTOS_CFG_MAX_NUM_MEM_PARTITIONS.
-static U1         largestBlockSize       = 0;   // Largest block size currently managed. Slight runtime improvement to store this variable.
 
 #endif
 #endif

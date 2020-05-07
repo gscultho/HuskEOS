@@ -30,6 +30,8 @@
 /*  Global Variables, Constants                                          */
 /*************************************************************************/
 static OSMemPartition partitionList[MEM_MAX_NUM_PARTITIONS];
+static U1         numPartitionsAllocated = 0;   // the current number of partitions allocated. Cannot exceed RTOS_CFG_MAX_NUM_MEM_PARTITIONS.
+static U1         largestBlockSize       = 0;   // Largest block size currently managed. Slight runtime improvement to store this variable.
 
 
 /*************************************************************************/
@@ -530,3 +532,5 @@ U1 u1_OSMem_maintenance()
 /* 2.0                02/22/20    Rewrite to remove malloc syscall references.                 */
 /*                                                                                             */
 /* 2.1                05/07/20    Small bugfixes with free and realloc functions.              */
+/*                                                                                             */
+/* 2.2                05/07/20    Moved static variables from memory internal to memory.c.     */
