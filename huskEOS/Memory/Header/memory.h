@@ -51,67 +51,85 @@ typedef struct Partition OSMemPartition;
 /*************************************************************************/
 
 /*************************************************************************/
-/*  Function Name: v_OSMemBlockInit                                      */
-/*  Purpose:       Add a memory block of the given size and number       */
-/*                 to the heap.                                          */
-/*  Arguments:     U1  u1_size:                                          */
-/*                     Desired memory amount to allocate.                */
-/*                 U1  u1_number:                                        */
-/*                     Number of blocks to create.                       */
-/*                 U1* pu1_err:                                          */
-/*                     Pointer variable for error code.                  */
-/*  Return:        void                                                  */
+/*  Function Name: u1_OSMem_PartitionInit                                */
+/*  Purpose:       Add a memory partition to the memory manager.         */
+/*  Arguments:     U1* partitionMatrix:                                  */
+/*                     Desired memory partition to allocate.             */
+/*                 U1  blockSize:                                        */
+/*                     Size of each block (number of matrix columns).    */
+/*                 U1  numBlocks:                                        */
+/*                     Number of matrix rows.                            */
+/*                 U1* err:                                              */
+/*                     Error variable. Can be one of the following:      */
+/*                     MEM_ERR_INVALID_SIZE_REQUEST, or                  */
+/*                     MEM_ERR_HIT_PARTITION_MAX, or                     */
+/*                     MEM_NO_ERROR                                      */
+/*  Return:        U1  numPartitions - 1                                 */
+/*                     Index of the newly allocated partition.           */
 /*************************************************************************/
-void v_OSMemBlockInit(U1 u1_size, U1 u1_number, U1 *pu1_err);
+U1 u1_OSMem_PartitionInit(U1* partitionMatrix, U1 blockSize, U1 numBlocks, U1 *err);
 
 /*************************************************************************/
-/*  Function Name: pu1_OSMalloc                                          */
+/*  Function Name: pu1_OSMem_malloc                                      */
 /*  Purpose:       Find and return first available memory block.         */
-/*  Arguments:     U1  u1_size:                                          */
+/*  Arguments:     U1  sizeRequested:                                    */
 /*                     Desired memory amount to allocate.                */
-/*                 U1* pu1_err:                                          */
-/*                     Pointer variable for error code.                  */
-/*  Return:        U1*     OR                                            */
-/*                       NULL                                            */
+/*                 U1* err:                                              */
+/*                     Error variable. Can be one of the following:      */
+/*                     MEM_ERR_INVALID_SIZE_REQUEST, or                  */
+/*                     MEM_ERR_MALLOC_NO_BLOCKS_AVAIL, or                */
+/*                     MEM_NO_ERROR                                      */
+/*  Return:        U1* Pointer to the allocated memory block, or         */
+/*                     NULL                                              */
 /*************************************************************************/
-U1* pu1_OSMalloc(U1 u1_size, U1* pu1_err);
+U1* pu1_OSMem_malloc(U1 sizeRequested, U1* err);
 
 /*************************************************************************/
-/*  Function Name: pu1_OSCalloc                                          */
-/*  Purpose:       Find and return first available memory block for      */
-/*                 the specified size. Initialize all bytes to zero.     */
-/*  Arguments:     U1  u1_size:                                          */
+/*  Function Name: pu1_OSMem_calloc                                      */
+/*  Purpose:       Return first available memory block, filled with 0's. */
+/*  Arguments:     U1  sizeRequested:                                    */
 /*                     Desired memory amount to allocate.                */
-/*                 U1* pu1_err:                                          */
-/*                     Pointer variable for error code.                  */
-/*  Return:        U1*     OR                                            */
-/*                       NULL                                            */
+/*                 U1* err:                                              */
+/*                     Error variable. Can be one of the following:      */
+/*                     MEM_ERR_INVALID_SIZE_REQUEST, or                  */
+/*                     MEM_ERR_MALLOC_NO_BLOCKS_AVAIL, or                */
+/*                     MEM_NO_ERROR                                      */
+/*  Return:        U1* Pointer to the allocated memory block, or         */
+/*                     NULL                                              */
 /*************************************************************************/
-U1* pu1_OSCalloc(U1 u1_size, U1* pu1_err);
+U1* pu1_OSMem_calloc(U1 sizeRequested, U1* err);
 
 /*************************************************************************/
-/*  Function Name: v_OSFree                                              */
+/*  Function Name: v_OSMem_free                                          */
 /*  Purpose:       Destroy the passed-in pointer and free the memblock.  */
-/*  Arguments:     U1** pu1_BlockStart:                                  */
+/*  Arguments:     U1** memToFree:                                       */
 /*                      Pointer to the memory contained in the memblock. */
-/*                 U1*  pu1_err:                                         */
-/*                      Pointer variable for error code.                 */
+/*                 U1*  err:                                             */
+/*                     Error variable. Can be one of the following:      */
+/*                     MEM_ERR_FREE_NOT_FOUND, or                        */
+/*                     MEM_NO_ERROR                                      */
 /*  Return:        void                                                  */
 /*************************************************************************/
-void v_OSFree(U1** pu1_BlockStart, U1* pu1_err);
+void v_OSMem_free(U1** memToFree, U1* err);
 
 /*************************************************************************/
-/*  Function Name: pu1_OSRealloc                                         */
+/*  Function Name: pu1_OSMem_realloc                                     */
 /*  Purpose:       Free the current block and re-allocate a new block.   */
-/*  Arguments:     U1** pu1_OldPointer:                                  */
+/*  Arguments:     U1*  oldPointer:                                      */
 /*                      Pointer to memory to reallocate.                 */
-/*                 U1   u1_newSize:                                      */
+/*                 U1   newSize:                                         */
 /*                      Desired new size of the memblock.                */
-/*                 U1*  pu1_err:                                         */
-/*                      Pointer variable for error code.                 */
-/*  Return:        U1*                                                   */
+/*                 U1*  err:                                             */
+/*                      Error variable. Can be one of the following:     */
+/*                      MEM_ERR_INVALID_SIZE_REQUEST, or                 */
+/*                      MEM_ERR_REALLOC_GEN_FAULT, or                    */
+/*                      MEM_ERR_FREE_NOT_FOUND, or                       */
+/*                      MEM_ERR_BLOCK_NOT_FOUND, or                      */
+/*                      MEM_NO_ERROR                                     */
+/*  Return:        U1* Pointer to the allocated memory block, or         */
+/*                     NULL                                              */
 /*************************************************************************/
-U1* pu1_OSRealloc(U1* pu1_OldPointer, U1 u1_NewSize, U1* pu1_err);
+U1* pu1_OSMem_realloc(U1* oldPointer, U1 newSize, U1* err);
 
 
 /*************************************************************************/

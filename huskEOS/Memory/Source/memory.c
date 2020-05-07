@@ -90,10 +90,10 @@ U1 u1_OSMem_PartitionInit(U1* partitionMatrix, U1 blockSize, U1 numBlocks, U1 *e
 			/* loop over each row of the matrix, and create a new memory block, and assign default properties */
 			for(blockIndex = 0; blockIndex < numBlocks; blockIndex++)
 			{
-				tempBlockStart += blockSize;
 				partitionList[numPartitionsAllocated].blocks[blockIndex].blockSize   = blockSize;
 				partitionList[numPartitionsAllocated].blocks[blockIndex].blockStatus = BLOCK_NOT_IN_USE;
 				partitionList[numPartitionsAllocated].blocks[blockIndex].start       = tempBlockStart;
+				tempBlockStart += blockSize;
 			}
 			numPartitionsAllocated++; // increment the partition tracker to indicate we added a new partition
 			*err = MEM_NO_ERROR;
@@ -367,7 +367,7 @@ U1* pu1_OSMem_realloc(U1* oldPointer, U1 newSize, U1* err)
 	{
 		/* just return an error, don't do anything to the old pointer */
 		*err = MEM_ERR_INVALID_SIZE_REQUEST;
-		return NULL;
+		return oldPointer;
 	}
 		
 	/* case new size is valid */
@@ -528,3 +528,5 @@ U1 u1_OSMem_maintenance()
 /* 1.1                09/04/19    Fixed warnings at compile time.                              */
 /*                                                                                             */
 /* 2.0                02/22/20    Rewrite to remove malloc syscall references.                 */
+/*                                                                                             */
+/* 2.1                05/07/20    Small bugfixes with free and realloc functions.              */
