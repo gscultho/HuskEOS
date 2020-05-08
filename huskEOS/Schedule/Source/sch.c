@@ -606,8 +606,9 @@ void vd_OSsch_taskWake(U1 taskID)
     Node_s_ap_mapTaskIDToTCB[taskID]->TCB->sleepCntr  =   (U4)ZERO; 
     Node_s_ap_mapTaskIDToTCB[taskID]->TCB->flags     &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP|SCH_TASK_FLAG_STS_SUSPENDED));
     
-#if(RTOS_CONFIG_BG_TASK == RTOS_CONFIG_TRUE && RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
-    if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[u1_s_numTasks - ONE]->TCB))
+#if(RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
+	  /* Check if CPU was previously idle, make calculation if so. */
+    if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[SCH_BG_TASK_ID]->TCB))
     {
       OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += (u1_cpu_getPercentOfTick() - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
     }
@@ -701,10 +702,11 @@ __irq void vd_OSsch_systemTick_ISR(void)
   u1_t_prioMask = u1_OSsch_interruptEnter();
   
   /* Increment ticks but cap at max (0xFFFFFFFF rounded down to nearest 100). */
-  u4_s_tickCntr = (++u4_s_tickCntr) % (U4)SCH_MAX_NUM_TICK;
+  u4_s_tickCntr = (u4_s_tickCntr + 1) % (U4)SCH_MAX_NUM_TICK;
   
 #if(RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
-  if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[ZERO]->TCB))
+	/* Check if CPU was previously idle, make calculation if so. */
+  if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[SCH_BG_TASK_ID]->TCB))
   {
     OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += ((U1)SCH_ONE_HUNDRED_PERCENT - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
   }
@@ -986,5 +988,9 @@ static U1 u1_sch_checkStack(U1 taskIndex)
 /* 2.2                8/19/19     Fixed minor bugs in CPU load calculation.                    */
 /*                                                                                             */
 /* 2.3                8/27/19     Integrated memory module.                                    */
+/*                                                                                             */
 /* 2.4                5/3/20      Changed SCH_BG_TASK_ID from ZERO to (SCH_MAX_NUM_TASKS - 1)  */
 /*                                to so that task ID zero is available (to match priorities).  */
+/*                                                                                             */
+/* 2.5                5/4/20      Changing SCH_BG_TASK_ID caused bug in CPU load calculation.  */
+/*                                Bug is now resolved.                                         */
