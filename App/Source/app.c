@@ -35,9 +35,9 @@ static void app_task3(void);
 /*************************************************************************/
 /*  Global Variables                                                     */
 /*************************************************************************/
-static U4 u4_taskStack [APP_TASK_STACK_SIZE];
-static U4 u4_taskStack2[APP_TASK_STACK_SIZE];
-static U4 u4_taskStack3[APP_TASK_STACK_SIZE];
+static OS_STACK u4_taskStack [APP_TASK_STACK_SIZE];
+static OS_STACK u4_taskStack2[APP_TASK_STACK_SIZE];
+static OS_STACK u4_taskStack3[APP_TASK_STACK_SIZE];
 
 /*************************************************************************/
 
