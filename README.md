@@ -70,3 +70,4 @@ Real-Time Operating System
  
  ## Current Ports
   * TI TM4C123GH6PM (80MHz ARM Cortex-M4)
+     * Demo projects included
