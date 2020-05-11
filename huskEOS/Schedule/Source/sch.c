@@ -607,7 +607,7 @@ void vd_OSsch_taskWake(U1 taskID)
     Node_s_ap_mapTaskIDToTCB[taskID]->TCB->flags     &= ~((U1)(SCH_TASK_FLAG_STS_SLEEP|SCH_TASK_FLAG_STS_SUSPENDED));
     
 #if(RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
-	  /* Check if CPU was previously idle, make calculation if so. */
+    /* Check if CPU was previously idle, make calculation if so. */
     if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[SCH_BG_TASK_ID]->TCB))
     {
       OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += (u1_cpu_getPercentOfTick() - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
@@ -705,7 +705,7 @@ __irq void vd_OSsch_systemTick_ISR(void)
   u4_s_tickCntr = (u4_s_tickCntr + 1) % (U4)SCH_MAX_NUM_TICK;
   
 #if(RTOS_CONFIG_CALC_TASK_CPU_LOAD == RTOS_CONFIG_TRUE)
-	/* Check if CPU was previously idle, make calculation if so. */
+  /* Check if CPU was previously idle, make calculation if so. */
   if(tcb_g_p_currentTaskBlock == (Node_s_ap_mapTaskIDToTCB[SCH_BG_TASK_ID]->TCB))
   {
     OS_s_cpuData.CPUIdlePercent.CPU_idleRunning += ((U1)SCH_ONE_HUNDRED_PERCENT - OS_s_cpuData.CPUIdlePercent.CPU_idlePrevTimestamp);
