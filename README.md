@@ -59,6 +59,11 @@ Real-Time Operating System
    * Configurable data type for messages.
    * APIs support task blocking with optional timeout and priority-based waking policy. 
 
+## Metrics
+ * All metrics captured using an ARM Cortex-M4 CPU with clock frequency set to 16MHz.
+   * 50,000 context switches per second.
+   * Function call to post semaphore -> wake blocked task -> context switch -> blocked task begins execution: 432 total clock cycles. 
+   * Function call from ISR to post flags -> wake blocked task -> exit ISR -> context switch -> blocked task begins execution: 592 total clock cycles.
 ## Current/Future Work
  * Support for multicore CPUs.
    * In design stage for supporting symmetric multiprocessing with optional core affinity. 
