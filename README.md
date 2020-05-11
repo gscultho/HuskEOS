@@ -71,7 +71,6 @@ Real-Time Operating System
      to be tested. 
    * Port will be for STM32H747 and STM32H757 (240MHz ARM Cortex-M4 + 480MHz ARM Cortex-M7).
  * Port for TI TMS320F28335 Digital Signal Controller (150 MHz C2000 DSP).
- * Memory module is currently being tested before final source is pushed. 
  
  ## Current Ports
   * TI TM4C123GH6PM (80MHz ARM Cortex-M4)
