@@ -15,7 +15,7 @@
 /*  Definitions                                                          */
 /*************************************************************************/
 #define APP_TICK_MS            (1)
-#define APP_TASK_STACK_SIZE    (1)
+#define APP_TASK_STACK_SIZE    (200)
 
 #define APP_TASK1_PRIO         (0)
 #define APP_TASK2_PRIO         (1)
