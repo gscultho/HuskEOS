@@ -108,8 +108,7 @@ U1 u1_OSqueue_init(Q_MEM* queueStart, U4 queueLength)
 /*************************************************************************/
 U1 u1_OSqueue_flushFifo(U1 queueNum, U1* error)
 {
-  Q_MEM* data_t_p_dataPtr;
-  U1     u1_t_return;
+  U1 u1_t_return;
   
   *error = u1_queue_checkValidFIFO(queueNum);
   
@@ -121,15 +120,8 @@ U1 u1_OSqueue_flushFifo(U1 queueNum, U1* error)
   {
     OS_SCH_ENTER_CRITICAL();
     
-    queue_queueList[queueNum].getPtr = queue_queueList[queueNum].startPtr; 
-    queue_queueList[queueNum].putPtr = queue_queueList[queueNum].startPtr;  
-    data_t_p_dataPtr                 = queue_queueList[queueNum].startPtr;  
-      
-    while(data_t_p_dataPtr != (Q_MEM*)queue_queueList[queueNum].endPtr)
-    {
-      *data_t_p_dataPtr = (Q_MEM)ZERO;
-      ++data_t_p_dataPtr;
-    }
+    queue_queueList[queueNum].getPtr = &queue_queueList[queueNum].startPtr[QUEUE_GET_PTR_START_INDEX]; /* Offset 0 from start. */
+    queue_queueList[queueNum].putPtr = &queue_queueList[queueNum].startPtr[QUEUE_PUT_PTR_START_INDEX]; /* Offset 1 from start. */  
     
     /* Wake all blocked tasks. */
     while(queue_queueList[queueNum].blockedTaskList.blockedListHead != QUEUE_NULL_PTR)
@@ -180,7 +172,7 @@ Q_MEM data_OSqueue_get(U1 queueNum, U4 blockPeriod, U1* error)
     }
     else
     {
-      data_t_p_nextGetPtr = queue_queueList[queueNum].getPtr + (U1)ONE;
+      data_t_p_nextGetPtr = queue_queueList[queueNum].getPtr + ONE;
     }
     
     /* If queue is empty */
@@ -296,7 +288,7 @@ U1 u1_OSqueue_getSts(U1 queueNum, U1* error)
     }
     else
     {
-      Q_MEM_t_p_nextGetPtr = queue_queueList[queueNum].getPtr + (U1)ONE;
+      Q_MEM_t_p_nextGetPtr = queue_queueList[queueNum].getPtr + ONE;
     }
     
     /* Get status */
@@ -580,3 +572,6 @@ static void vd_queue_unblockWaitingTasks(U1 queueNum)
 /* 1.0                8/5/19      Rewrite to support better flow and blocked task handling.    */
 /*                                                                                             */
 /* 1.1                8/14/19     Some bug fixes. Data being overwritten.                      */
+/*                                                                                             */
+/* 1.2                5/12/20     u1_OSqueue_flushFifo() will no longer reset queue entries to */
+/*                                zero as this is unnecessary.                                 */
