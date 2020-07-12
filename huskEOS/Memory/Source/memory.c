@@ -30,14 +30,14 @@
 /*  Global Variables, Constants                                          */
 /*************************************************************************/
 static OSMemPartition partitionList[MEM_MAX_NUM_PARTITIONS];
-static U1         numPartitionsAllocated = 0;   // the current number of partitions allocated. Cannot exceed RTOS_CFG_MAX_NUM_MEM_PARTITIONS.
-static U1         largestBlockSize       = 0;   // Largest block size currently managed. Slight runtime improvement to store this variable.
+static U1             numPartitionsAllocated = 0;   // the current number of partitions allocated. Cannot exceed RTOS_CFG_MAX_NUM_MEM_PARTITIONS.
+static U1             largestBlockSize       = 0;   // Largest block size currently managed. Slight runtime improvement to store this variable.
 
 
 /*************************************************************************/
 /*  Private Function Prototypes                                          */
 /*************************************************************************/
-U1 u1_OSMem_findBlockSize(U1* blockStart, U1* err);
+U1 u1_OSMem_findBlockSize(MEMTYPE* blockStart, U1* err);
 
 
 /*************************************************************************/
@@ -47,7 +47,7 @@ U1 u1_OSMem_findBlockSize(U1* blockStart, U1* err);
 /*************************************************************************/
 /*  Function Name: u1_OSMem_PartitionInit                                */
 /*  Purpose:       Add a memory partition to the memory manager.         */
-/*  Arguments:     U1* partitionMatrix:                                  */
+/*  Arguments:     MEMTYPE* partitionMatrix:                             */
 /*                     Desired memory partition to allocate.             */
 /*                 U1  blockSize:                                        */
 /*                     Size of each block (number of matrix columns).    */
@@ -61,7 +61,7 @@ U1 u1_OSMem_findBlockSize(U1* blockStart, U1* err);
 /*  Return:        U1  numPartitions - 1                                 */
 /*                     Index of the newly allocated partition.           */
 /*************************************************************************/
-U1 u1_OSMem_PartitionInit(U1* partitionMatrix, U1 blockSize, U1 numBlocks, U1 *err)
+U1 u1_OSMem_PartitionInit(MEMTYPE* partitionMatrix, U1 blockSize, U1 numBlocks, U1 *err)
 {
 	U1  blockIndex     = 0;
 	U1* tempBlockStart = NULL;
@@ -113,7 +113,7 @@ U1 u1_OSMem_PartitionInit(U1* partitionMatrix, U1 blockSize, U1 numBlocks, U1 *e
 }
 
 /*************************************************************************/
-/*  Function Name: pu1_OSMem_malloc                                      */
+/*  Function Name: data_OSMem_malloc                                      */
 /*  Purpose:       Find and return first available memory block.         */
 /*  Arguments:     U1  sizeRequested:                                    */
 /*                     Desired memory amount to allocate.                */
@@ -122,10 +122,10 @@ U1 u1_OSMem_PartitionInit(U1* partitionMatrix, U1 blockSize, U1 numBlocks, U1 *e
 /*                     MEM_ERR_INVALID_SIZE_REQUEST, or                  */
 /*                     MEM_ERR_MALLOC_NO_BLOCKS_AVAIL, or                */
 /*                     MEM_NO_ERROR                                      */
-/*  Return:        U1* Pointer to the allocated memory block, or         */
-/*                     NULL                                              */
+/*  Return:        MEMTYPE* Pointer to the allocated memory block, or    */
+/*                          NULL                                         */
 /*************************************************************************/
-U1* pu1_OSMem_malloc(U1 sizeRequested, U1* err)
+MEMTYPE* data_OSMem_malloc(U1 sizeRequested, U1* err)
 {
 	U1 partitionIndex = 0;
 	U1 blockIndex     = 0;
@@ -188,7 +188,7 @@ U1* pu1_OSMem_malloc(U1 sizeRequested, U1* err)
 }
 
 /*************************************************************************/
-/*  Function Name: pu1_OSMem_calloc                                      */
+/*  Function Name: data_OSMem_calloc                                      */
 /*  Purpose:       Return first available memory block, filled with 0's. */
 /*  Arguments:     U1  sizeRequested:                                    */
 /*                     Desired memory amount to allocate.                */
@@ -200,7 +200,7 @@ U1* pu1_OSMem_malloc(U1 sizeRequested, U1* err)
 /*  Return:        U1* Pointer to the allocated memory block, or         */
 /*                     NULL                                              */
 /*************************************************************************/
-U1* pu1_OSMem_calloc(U1 sizeRequested, U1* err)
+MEMTYPE* data_OSMem_calloc(U1 sizeRequested, U1* err)
 {
 	U1 partitionIndex = 0;
 	U1 blockIndex     = 0;
@@ -269,20 +269,21 @@ U1* pu1_OSMem_calloc(U1 sizeRequested, U1* err)
 /*************************************************************************/
 /*  Function Name: v_OSMem_free                                          */
 /*  Purpose:       Destroy the passed-in pointer and free the memblock.  */
-/*  Arguments:     U1** memToFree:                                       */
-/*                      Pointer to the memory contained in the memblock. */
+/*  Arguments:     MEMTYPE** memToFree:                                  */
+/*                           Pointer to the memory contained in the      */
+/*                           memblock.                                   */        
 /*                 U1*  err:                                             */
 /*                     Error variable. Can be one of the following:      */
 /*                     MEM_ERR_FREE_NOT_FOUND, or                        */
 /*                     MEM_NO_ERROR                                      */
 /*  Return:        void                                                  */
 /*************************************************************************/
-void v_OSMem_free(U1** memToFree, U1* err)
+void v_OSMem_free(MEMTYPE** memToFree, U1* err)
 {
-	U1 foundMemoryBlock = 0;
-	U1 partitionIndex = 0;
-	U1 blockIndex     = 0;
-	U1* blockStart    = NULL;
+	U1 foundMemoryBlock    = 0;
+	U1 partitionIndex      = 0;
+	U1 blockIndex          = 0;
+	MEMTYPE* blockStart    = NULL;
 	
 	/* find the block currently in use by the heap */
 	for(partitionIndex = 0; partitionIndex < numPartitionsAllocated; partitionIndex++)
@@ -321,9 +322,9 @@ void v_OSMem_free(U1** memToFree, U1* err)
 
 
 /*************************************************************************/
-/*  Function Name: pu1_OSMem_realloc                                     */
+/*  Function Name: data_OSMem_realloc                                    */
 /*  Purpose:       Free the current block and re-allocate a new block.   */
-/*  Arguments:     U1*  oldPointer:                                      */
+/*  Arguments:     MEMTYPE*  oldPointer:                                 */
 /*                      Pointer to memory to reallocate.                 */
 /*                 U1   newSize:                                         */
 /*                      Desired new size of the memblock.                */
@@ -334,15 +335,15 @@ void v_OSMem_free(U1** memToFree, U1* err)
 /*                      MEM_ERR_FREE_NOT_FOUND, or                       */
 /*                      MEM_ERR_BLOCK_NOT_FOUND, or                      */
 /*                      MEM_NO_ERROR                                     */
-/*  Return:        U1* Pointer to the allocated memory block, or         */
+/*  Return:        MEMTYPE* Pointer to the allocated memory block, or    */
 /*                     NULL                                              */
 /*************************************************************************/
-U1* pu1_OSMem_realloc(U1* oldPointer, U1 newSize, U1* err)
+MEMTYPE* data_OSMem_realloc(MEMTYPE* oldPointer, U1 newSize, U1* err)
 {
 	U1  localError          = 0;
 	U1  loopLength          = 0;
 	U1  byteIndex           = 0;	
-	U1* newPointer          = NULL;
+	MEMTYPE* newPointer     = NULL;
 	
 	/* find size of old memory block */
 	U1 oldBlockSize = u1_OSMem_findBlockSize(oldPointer, &localError);
@@ -376,7 +377,7 @@ U1* pu1_OSMem_realloc(U1* oldPointer, U1 newSize, U1* err)
 	else
 	{
 		/* first we try to allocate a new memory block */
-		newPointer = pu1_OSMem_malloc(newSize, &localError);
+		newPointer = data_OSMem_malloc(newSize, &localError);
 		
 		/* next make sure there are no error codes */
 		if(  localError == MEM_NO_ERROR 
@@ -431,7 +432,7 @@ U1* pu1_OSMem_realloc(U1* oldPointer, U1 newSize, U1* err)
 /*  Function Name: u1_OSMem_findBlockSize                                */
 /*  Purpose:       Find the index of the memory block with the same      */
 /*                 passed in start pointer.                              */
-/*  Arguments:     U1* blockStart:                                       */
+/*  Arguments:     MEMTYPE* blockStart:                                  */
 /*                     Pointer to find in the partition list.            */
 /*                 U1* err:                                              */
 /*                      Error variable. Can be one of the following:     */
@@ -439,7 +440,7 @@ U1* pu1_OSMem_realloc(U1* oldPointer, U1 newSize, U1* err)
 /*                      MEM_NO_ERROR                                     */
 /*  Return:        U1  Size of the memory block. 255 if error.           */
 /*************************************************************************/
-U1 u1_OSMem_findBlockSize(U1* blockStart, U1* err)
+U1 u1_OSMem_findBlockSize(MEMTYPE* blockStart, U1* err)
 {
 	U1 partitionIndex = 0;
 	U1 blockIndex     = 0;
@@ -534,3 +535,5 @@ U1 u1_OSMem_maintenance()
 /* 2.1                05/07/20    Small bugfixes with free and realloc functions.              */
 /*                                                                                             */
 /* 2.2                05/07/20    Moved static variables from memory internal to memory.c.     */
+/*                                                                                             */
+/* 2.3                07/12/20    Changed memory module datatype to be user defined.           */

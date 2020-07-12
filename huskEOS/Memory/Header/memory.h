@@ -82,10 +82,10 @@ U1 u1_OSMem_PartitionInit(U1* partitionMatrix, U1 blockSize, U1 numBlocks, U1 *e
 /*  Return:        U1* Pointer to the allocated memory block, or         */
 /*                     NULL                                              */
 /*************************************************************************/
-U1* pu1_OSMem_malloc(U1 sizeRequested, U1* err);
+MEMTYPE* data_OSMem_malloc(U1 sizeRequested, U1* err);
 
 /*************************************************************************/
-/*  Function Name: pu1_OSMem_calloc                                      */
+/*  Function Name: data_OSMem_calloc                                     */
 /*  Purpose:       Return first available memory block, filled with 0's. */
 /*  Arguments:     U1  sizeRequested:                                    */
 /*                     Desired memory amount to allocate.                */
@@ -94,28 +94,29 @@ U1* pu1_OSMem_malloc(U1 sizeRequested, U1* err);
 /*                     MEM_ERR_INVALID_SIZE_REQUEST, or                  */
 /*                     MEM_ERR_MALLOC_NO_BLOCKS_AVAIL, or                */
 /*                     MEM_NO_ERROR                                      */
-/*  Return:        U1* Pointer to the allocated memory block, or         */
-/*                     NULL                                              */
+/*  Return:        MEMTYPE* Pointer to the allocated memory block, or    */
+/*                          NULL                                         */
 /*************************************************************************/
-U1* pu1_OSMem_calloc(U1 sizeRequested, U1* err);
+MEMTYPE* data_OSMem_calloc(U1 sizeRequested, U1* err);
 
 /*************************************************************************/
 /*  Function Name: v_OSMem_free                                          */
 /*  Purpose:       Destroy the passed-in pointer and free the memblock.  */
-/*  Arguments:     U1** memToFree:                                       */
-/*                      Pointer to the memory contained in the memblock. */
+/*  Arguments:     MEMTYPE** memToFree:                                  */
+/*                           Pointer to the memory contained in the      */
+/*                           memblock.                                   */        
 /*                 U1*  err:                                             */
 /*                     Error variable. Can be one of the following:      */
 /*                     MEM_ERR_FREE_NOT_FOUND, or                        */
 /*                     MEM_NO_ERROR                                      */
 /*  Return:        void                                                  */
 /*************************************************************************/
-void v_OSMem_free(U1** memToFree, U1* err);
+void v_OSMem_free(MEMTYPE** memToFree, U1* err);
 
 /*************************************************************************/
-/*  Function Name: pu1_OSMem_realloc                                     */
+/*  Function Name: MEMTYPE_OSMem_realloc                                 */
 /*  Purpose:       Free the current block and re-allocate a new block.   */
-/*  Arguments:     U1*  oldPointer:                                      */
+/*  Arguments:     MEMTYPE*  oldPointer:                                 */
 /*                      Pointer to memory to reallocate.                 */
 /*                 U1   newSize:                                         */
 /*                      Desired new size of the memblock.                */
@@ -126,10 +127,10 @@ void v_OSMem_free(U1** memToFree, U1* err);
 /*                      MEM_ERR_FREE_NOT_FOUND, or                       */
 /*                      MEM_ERR_BLOCK_NOT_FOUND, or                      */
 /*                      MEM_NO_ERROR                                     */
-/*  Return:        U1* Pointer to the allocated memory block, or         */
-/*                     NULL                                              */
+/*  Return:        MEMTYPE* Pointer to the allocated memory block, or    */
+/*                          NULL                                         */
 /*************************************************************************/
-U1* pu1_OSMem_realloc(U1* oldPointer, U1 newSize, U1* err);
+MEMTYPE* data_OSMem_realloc(U1* oldPointer, U1 newSize, U1* err);
 
 
 /*************************************************************************/

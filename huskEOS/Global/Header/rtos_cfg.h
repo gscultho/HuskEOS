@@ -61,6 +61,7 @@
 #define RTOS_CFG_MAX_NUM_MEM_PARTITIONS             (0)                  /* Maximum number of memory partitions available in run-time. */
 #define RTOS_CFG_MAX_NUM_MEM_BLOCKS                 (0)                  /* Maximum number of blocks that can be contained within a partition. */
 #define RTOS_CFG_MAX_MEM_BLOCK_SIZE                 (0)                  /* Maximum memory block size. */
+#define RTOS_CFG_MEMORY_TYPE                        U1                   /* Type of data to use in the memory module. */
 
 /* I/O */
 #define PART_TM4C123GH6PM 1
@@ -72,6 +73,7 @@
 /* Internal - Do not modify */
 typedef RTOS_CFG_MBOX_DATA   MAIL;
 typedef RTOS_CFG_BUFFER_DATA Q_MEM;
+typedef RTOS_CFG_MEMORY_TYPE MEMTYPE;
 
 /*************************************************************************/
 /*  Public Functions                                                     */

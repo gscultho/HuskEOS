@@ -26,20 +26,20 @@
 /* Low level memory "block" */
 typedef struct Block
 {
-	U1 *start;            // Starting address of the memory block. For the Cortex M4, this has a size of 4 bytes.
-	U1 blockStatus;       // Status of this block, IN_USE or NOT_IN_USE
-	U1 blockSize;         // Size of this block. Size will be the actual size minus the watermark size.
+	MEMTYPE* start;             // Starting address of the memory block. For the Cortex M4, this has a size of 4 bytes.
+	U1       blockStatus;       // Status of this block, IN_USE or NOT_IN_USE
+	U1       blockSize;         // Size of this block. Size will be the actual size minus the watermark size.
 } // Total size: 6 bytes 
 Block;
 
 typedef struct Partition
 {
-	U1*    start;                               // Starting address of the memory partition (matrix).
-	U1     numBlocks;                           // Number of blocks in this partition. Vanilla max is 16.
-	U1     numActiveBlocks;                     // Number of active/in-use blocks in this partition.
-	U1     blockSize;                           // Size of the blocks in this partition. Vanilla max is 62 bytes.
-	Block  blocks[RTOS_CFG_MAX_NUM_MEM_BLOCKS]; // Array of block references in this partition.
-} // Maximum size: 103 bytes.
+	MEMTYPE* start;                               // Starting address of the memory partition (matrix).
+	U1       numBlocks;                           // Number of blocks in this partition. Vanilla max is 16.
+	U1       numActiveBlocks;                     // Number of active/in-use blocks in this partition.
+	U1       blockSize;                           // Size of the blocks in this partition. Vanilla max is 62 bytes.
+	Block    blocks[RTOS_CFG_MAX_NUM_MEM_BLOCKS]; // Array of block references in this partition.
+} 
 Partition;
 
 /*************************************************************************/
