@@ -240,9 +240,6 @@ U1 u1_OSflags_pendOnFlags(OSFlagsObj* flags, U1 eventMask, U4 timeOut, U1 eventT
         flags->pendingList[u1_t_index].tcb           = SCH_CURRENT_TCB_ADDR;
         flags->pendingList[u1_t_index].eventPendType = eventType;
         
-        /* Notify scheduler the reason for sleep state. */
-        vd_OSsch_setReasonForSleep(flags, (U1)SCH_TASK_SLEEP_RESOURCE_FLAGS);
-        
         /* If indefinite timeout */
         if(timeOut == (U4)ZERO)
         {
@@ -251,7 +248,8 @@ U1 u1_OSflags_pendOnFlags(OSFlagsObj* flags, U1 eventMask, U4 timeOut, U1 eventT
         /* If defined timeout */
         else
         {
-          vd_OSsch_taskSleep(timeOut);
+          /* Notify scheduler the reason for sleep state. */
+          vd_OSsch_setReasonForSleep(flags, (U1)SCH_TASK_SLEEP_RESOURCE_FLAGS, timeOut);
         }
         
         break; /* Break loop */
