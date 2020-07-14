@@ -121,8 +121,9 @@ U1 u1_OSsema_wait(OSSemaphore* semaphore, U4 blockPeriod)
     else
     {
       vd_OSsema_blockTask(semaphore); /* Add task to resource blocked list */
-      vd_OSsch_setReasonForSleep(semaphore, (U1)SCH_TASK_SLEEP_RESOURCE_SEMA); /* Tell scheduler the reason for task block state */
-      vd_OSsch_taskSleep(blockPeriod); /* Set sleep timer and change task state */  
+      /* Tell scheduler the reason for task block state, 
+      set sleep timer and change task state */
+      vd_OSsch_setReasonForSleep(semaphore, (U1)SCH_TASK_SLEEP_RESOURCE_SEMA, blockPeriod);  
       OS_SCH_EXIT_CRITICAL();
       
       /* Check again after task wakes up */
