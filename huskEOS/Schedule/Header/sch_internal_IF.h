@@ -81,14 +81,17 @@ void vd_OSsch_setReasonForWakeup(U1 reason, struct Sch_Task* wakeupTaskTCB);
 
 /*************************************************************************/
 /*  Function Name: vd_OSsch_setReasonForSleep                            */
-/*  Purpose:       Set reason for task sleep according to mask.          */
+/*  Purpose:       Set reason for task sleep according to mask and set   */
+/*                 task to sleep state.                                  */
 /*  Arguments:     void* taskSleepResource:                              */
 /*                       Address of resource task is blocked on.         */
 /*                 U1 resourceType:                                      */
 /*                       Code for resource that task is sleeping on.     */
+/*                 U4 period:                                            */
+/*                       Period to sleep for.                            */
 /*  Return:        N/A                                                   */
 /*************************************************************************/
-void vd_OSsch_setReasonForSleep(void* taskSleepResource, U1 resourceType);
+void vd_OSsch_setReasonForSleep(void* taskSleepResource, U1 resourceType, U4 period);
 
 /*************************************************************************/
 /*  Function Name: u1_OSsch_setNewPriority                               */
