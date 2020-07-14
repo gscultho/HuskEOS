@@ -184,8 +184,7 @@ Q_MEM data_OSqueue_get(U1 queueNum, U4 blockPeriod, U1* error)
       if(blockPeriod != (U4)QUEUE_BLOCK_PERIOD_NO_BLOCK)
       {
         vd_OSqueue_addTaskToBlocked(queueNum);
-        vd_OSsch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE);
-        vd_OSsch_taskSleep(blockPeriod); 
+        vd_OSsch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE, blockPeriod);
         
         /* Let task enter sleep state. */
         OS_SCH_EXIT_CRITICAL();
@@ -348,8 +347,7 @@ U1 u1_OSqueue_put(U1 queueNum, U4 blockPeriod, Q_MEM message, U1* error)
       if(blockPeriod != (U4)QUEUE_BLOCK_PERIOD_NO_BLOCK)
       {
         vd_OSqueue_addTaskToBlocked(queueNum);
-        vd_OSsch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE);
-        vd_OSsch_taskSleep(blockPeriod);
+        vd_OSsch_setReasonForSleep(&queue_queueList[queueNum], (U1)SCH_TASK_SLEEP_RESOURCE_QUEUE, blockPeriod);
         
         /* Let task enter sleep state. */
         OS_SCH_EXIT_CRITICAL();
