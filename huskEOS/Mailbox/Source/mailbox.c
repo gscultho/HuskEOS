@@ -364,8 +364,7 @@ static void vd_OSmbox_blockHandler(U4 blockPeriod, U1 mailboxID)
   }
   
   /* Set task to sleep state and notify scheduler of reason. */
-  vd_OSsch_setReasonForSleep(&Mbox_MailboxList[mailboxID], (U1)SCH_TASK_SLEEP_RESOURCE_MBOX); 
-  vd_OSsch_taskSleep(blockPeriod);  
+  vd_OSsch_setReasonForSleep(&Mbox_MailboxList[mailboxID], (U1)SCH_TASK_SLEEP_RESOURCE_MBOX, blockPeriod); 
 }
 
 /*************************************************************************/
