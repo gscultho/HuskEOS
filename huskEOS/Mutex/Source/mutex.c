@@ -128,8 +128,9 @@ U1 u1_OSmutex_lock(OSMutex* mutex, U4 blockPeriod)
     else
     {
       /* Per scheduler v2 requirement: No two tasks in active state can share the same priority. */
-      vd_OSsch_setReasonForSleep(mutex, (U1)SCH_TASK_SLEEP_RESOURCE_MUTEX); /* Tell scheduler the reason for task block state */
-      vd_OSsch_taskSleep(blockPeriod); /* Set sleep timer and change task state */  
+      /* Tell scheduler the reason for task block state,
+         set sleep timer and change task state. */
+      vd_OSsch_setReasonForSleep(mutex, (U1)SCH_TASK_SLEEP_RESOURCE_MUTEX, blockPeriod);  
       vd_OSmutex_blockTask(mutex); /* Add task to resource blocked list */
       
       OS_SCH_EXIT_CRITICAL();
