@@ -4,7 +4,7 @@ Real-Time Operating System
 ## General Information
  * Priority-based preemptive scheduler. 
  * Achieves 50,000 context switches per second on Cortex-M4 configured at 16MHz. 
- * Counting/binary semaphores, mutexes, queues, mailboxes, flags, and dynamic memory emulator. All primitives and resources support   optional thread blocking with deterministic priority-based waking policy. 
+ * Counting/binary semaphores, mutexes, queues, mailboxes, flags, and dynamic memory emulator. All primitives and resources support optional thread blocking with deterministic priority-based waking policy. 
  * 2.3 - 6KB flash footprint. 
  * Memory (RW + RO + ZI) footprint can be configured as low as 550 bytes. 
  * All memory statically allocated, no need for heap. 
@@ -21,7 +21,7 @@ Real-Time Operating System
   | Email            | gscultho@umich.edu                     |
   | Email            | djcicala@umich.edu                     |
 
-## Modules
+## Services
  * ### Scheduler
    * Task scheduling and state handling. 
    * Priority-based preemptive scheduler.
