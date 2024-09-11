@@ -58,20 +58,3 @@ Real-Time Operating System
    * Fully configurable FIFO message queues.    
    * Configurable data type for messages.
    * APIs support task blocking with optional timeout and priority-based waking policy. 
-
-## Metrics
- * All metrics captured using an ARM Cortex-M4 CPU with clock frequency set to 16MHz.
-   * 50,000 context switches per second.
-   * Function call to post semaphore -> wake blocked task -> context switch -> blocked task begins execution: 444 total clock cycles. 
-   * Function call from ISR to post flags -> wake blocked task -> exit ISR -> context switch -> blocked task begins execution: 507 total clock cycles.
-## Current/Future Work
- * Support for multicore CPUs.
-   * In design stage for supporting symmetric multiprocessing with optional core affinity. 
-   * HuskEOS should presently be able to run in an asymmetric multiprocessing architecture on any number of cores, although this needs 
-     to be tested. 
-   * Port will be for STM32H747 and STM32H757 (240MHz ARM Cortex-M4 + 480MHz ARM Cortex-M7).
- * Port for TI TMS320F28335 Digital Signal Controller (150 MHz C2000 DSP).
- 
- ## Current Ports
-  * TI TM4C123GH6PM (80MHz ARM Cortex-M4)
-     * Demo projects included
